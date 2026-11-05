@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useApp } from '../App.jsx';
 import CountUp from '../components/reactbits/CountUp.jsx';
-import ShinyText from '../components/reactbits/ShinyText.jsx';
 import { Dot, LiveTable, Pill, PlainTable, Seg, Sparkline, SqlText, Status, TxChip } from '../components/ui.jsx';
 import { bytes, fmtTime, post, TYPE_LABEL } from '../lib/api.js';
 import { usePoll, useNow } from '../lib/hooks.js';
@@ -18,26 +17,30 @@ function useMetrics(active = true) {
   return usePoll('/metrics', 1000, { onEvents: false, active });
 }
 
-function Strip({ m }) {
+// The database as the patient: six vitals traced on ECG chart paper.
+function Vitals({ m }) {
   const my = m?.mysql || {};
   const rp = m?.replica || {};
   const rd = m?.redis || {};
   const h = m?.history || {};
+  const INK = '#13202b';
+  const BLUE = '#1f4fd1';
+  const RED = '#d23a4a';
   const cells = [
-    { k: 'QPS', v: my.rates?.qps, s: h.qps, c: '#2a55c9' },
-    { k: 'TPS', v: my.tps, s: h.tps, c: '#0f5f4b' },
-    { k: 'Lock waits', v: my.row_lock_current_waits, s: h.lock_waits, c: '#a8650f', bad: my.row_lock_current_waits > 0 },
-    { k: 'Deadlocks', v: my.deadlocks_total, s: h.deadlocks, c: '#b42d24' },
-    { k: 'Replica lag', v: rp.lag_ms, unit: 'ms', s: h.replica_lag_ms, c: '#5b49b8', bad: rp.lag_ms > 1500 },
-    { k: 'Redis ops/s', v: rd.ops, s: h.redis_ops, c: '#a33545' },
+    { k: 'Queries per second', v: my.rates?.qps, s: h.qps, c: INK },
+    { k: 'Transactions per second', v: my.tps, s: h.tps, c: BLUE },
+    { k: 'Rows waiting on a lock', v: my.row_lock_current_waits, s: h.lock_waits, c: INK, bad: my.row_lock_current_waits > 0 },
+    { k: 'Deadlocks since start', v: my.deadlocks_total, s: h.deadlocks, c: RED },
+    { k: 'Replica behind by', v: rp.lag_ms, unit: 'ms', s: h.replica_lag_ms, c: BLUE, bad: rp.lag_ms > 1500 },
+    { k: 'Redis commands per second', v: rd.ops, s: h.redis_ops, c: INK },
   ];
   return (
-    <div className="strip">
+    <div className="vitals ecg">
       {cells.map((c) => (
-        <div key={c.k} className="m">
-          <div className="mk">{c.k}</div>
-          <div className={`mv ${c.bad ? 'bad' : ''}`}>{c.v == null ? '-' : Math.round(c.v * 10) / 10}{c.unit && <small>{c.unit}</small>}</div>
-          <Sparkline points={(c.s || []).slice(-40)} color={c.c} height={18} />
+        <div key={c.k} className="vital">
+          <div className="vk" style={{ color: c.c === RED ? RED : 'var(--muted)' }}>{c.k}</div>
+          <div className={`vv ${c.bad ? 'bad' : ''}`}>{c.v == null ? '-' : Math.round(c.v * 10) / 10}{c.unit && <small>{c.unit}</small>}</div>
+          <Sparkline points={(c.s || []).slice(-50)} color={c.c} height={30} />
         </div>
       ))}
     </div>
@@ -182,7 +185,7 @@ function XrayTab() {
     <div className="xray-grid">
       {error && <div className="verdict bad">{error.message}</div>}
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Active transactions</h2><p className="mono" style={{ fontSize: 11 }}>information_schema.INNODB_TRX</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Active transactions</h2><p className="mono" style={{ fontSize: 11 }}>information_schema.INNODB_TRX</p></div>
         <PlainTable rows={trx} columns={[
           { key: 'tx', label: 'tx', render: (r) => <TxChip tx={r.tx} /> },
           { key: 'label', label: 'who' },
@@ -194,11 +197,11 @@ function XrayTab() {
         ]} />
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Wait-for graph</h2><p className="mono" style={{ fontSize: 11 }}>performance_schema.data_lock_waits</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Wait-for graph</h2><p className="mono" style={{ fontSize: 11 }}>performance_schema.data_lock_waits</p></div>
         <WaitForGraph nodes={trx.map((t) => t.tx)} edges={data?.waits || []} labels={Object.fromEntries(trx.map((t) => [t.tx, t.label.slice(0, 28)]))} />
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Row locks</h2><p className="mono" style={{ fontSize: 11 }}>performance_schema.data_locks</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Row locks</h2><p className="mono" style={{ fontSize: 11 }}>performance_schema.data_locks</p></div>
         <PlainTable rows={locks} columns={[
           { key: 'tx', label: 'tx', render: (r) => <TxChip tx={r.tx} /> }, 'tbl', 'idx',
           { key: 'mode', label: 'mode' },
@@ -207,7 +210,7 @@ function XrayTab() {
         ]} />
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Latest deadlock</h2><p className="mono" style={{ fontSize: 11 }}>SHOW ENGINE INNODB STATUS</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Latest deadlock</h2><p className="mono" style={{ fontSize: 11 }}>SHOW ENGINE INNODB STATUS</p></div>
         {!data?.deadlock ? <div className="empty">No deadlock since MySQL started. Run demo 3 in request order.</div> : (
           <div className="dl-card">
             <div className="row"><Pill kind="err">DEADLOCK</Pill><span className="mono" style={{ fontSize: 11.5 }}>{data.deadlock.when}</span>
@@ -216,7 +219,7 @@ function XrayTab() {
             <div className="dl-tx">
               {data.deadlock.transactions.map((t) => (
                 <div key={t.n} className={t.n === data.deadlock.victim ? 'victim' : ''}>
-                  <div className="row"><b>({t.n})</b>{t.tx && <TxChip tx={t.tx} />}<span className="mono faint">trx {t.trx_id} · thread {t.thread_id}</span></div>
+                  <div className="row"><b>({t.n})</b>{t.tx && <TxChip tx={t.tx} />}<span className="mono faint">trx {t.trx_id}, thread {t.thread_id}</span></div>
                   <div className="mono" style={{ fontSize: 11, margin: '4px 0', wordBreak: 'break-word' }}>{t.query}</div>
                   {t.holds && <div>holds <b>{t.holds.mode}</b> on {t.holds.table}.{t.holds.index} row <b className="mono">{t.holds.record}</b></div>}
                   {t.waits_for && <div>waits for <b>{t.waits_for.mode}</b> on row <b className="mono">{t.waits_for.record}</b></div>}
@@ -244,7 +247,7 @@ function RedisTab() {
         <button className="btn sm" disabled={busy} onClick={async () => { setBusy(true); try { await post('/redis/rebuild'); } finally { setBusy(false); } }}>Rebuild from MySQL</button>
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Pub/sub channel <span className="mono">events</span></h2><p>newest first</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Pub/sub channel <span className="mono">events</span></h2><p>newest first</p></div>
         <div className="tbl-wrap" style={{ maxHeight: 220 }}>
           <div className="sqllog">
             {events.slice(0, 40).map((e, i) => {
@@ -254,7 +257,7 @@ function RedisTab() {
                   <span className="ts">{fmtTime(d.ts)}</span>
                   <div className="code" style={{ color: 'var(--ink-2)' }}>
                     <b>{d.kind === 'audit' ? d.action : d.kind}</b>{' '}
-                    {d.kind === 'audit' ? `${d.entity} ${d.entity_id ?? ''}${d.by ? ` · by ${d.by}` : ''}` : Object.entries(d).filter(([k]) => !['kind', 'id', 'ts', 'origin'].includes(k) && d[k] != null).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ')}
+                    {d.kind === 'audit' ? `${d.entity} ${d.entity_id ?? ''}${d.by ? `, by ${d.by}` : ''}` : Object.entries(d).filter(([k]) => !['kind', 'id', 'ts', 'origin'].includes(k) && d[k] != null).map(([k, v]) => `${k}=${typeof v === 'object' ? JSON.stringify(v) : v}`).join(' ')}
                   </div>
                   <span className="ms">{e.via}</span>
                 </div>
@@ -265,14 +268,14 @@ function RedisTab() {
         </div>
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Free-bed counters</h2><p className="mono">free:hospital:type vs SELECT COUNT(*) in MySQL</p></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>Free-bed counters</h2><p className="mono">free:hospital:type vs SELECT COUNT(*) in MySQL</p></div>
         <PlainTable rows={data?.counters || []} maxHeight={260} highlight={(r) => !r.match} columns={[
           'key', { key: 'bed_type_id', label: 'type', render: (r) => TYPE_LABEL[r.bed_type_id] }, 'redis', 'mysql',
           { key: 'match', label: '', render: (r) => (r.match ? <Pill kind="ok">match</Pill> : <Pill kind="err">stale</Pill>) },
         ]} />
       </div>
       <div>
-        <div className="section-title"><h2 style={{ fontSize: 13.5 }}>GEO set <span className="mono">hospitals:geo</span></h2></div>
+        <div className="section-title"><h2 style={{ fontSize: 15 }}>GEO set <span className="mono">hospitals:geo</span></h2></div>
         <PlainTable rows={data?.geo || []} columns={['member', 'lon', 'lat']} />
       </div>
     </div>
@@ -286,25 +289,25 @@ function Topology({ m }) {
   const instances = useStore(live, (s) => s.instances);
   const h = Object.values(health)[0] || {};
   const rp = m?.replica || {};
-  const col = (ok) => (ok === false ? '#b42d24' : ok ? '#1d7a46' : '#9a9da3');
+  const col = (ok) => (ok === false ? '#d23a4a' : ok ? '#13202b' : '#96a4b0');
   const box = (x, y, w, title, sub, ok, key) => (
     <g key={key}>
       <rect x={x} y={y} width={w} height="46" rx="7" fill="#fff" stroke={col(ok)} strokeWidth="1.4" />
       <circle cx={x + 13} cy={y + 15} r="3.5" fill={col(ok)} />
-      <text x={x + 23} y={y + 19} fontSize="11.5" fontWeight="600" fill="#17191c" fontFamily="IBM Plex Sans">{title}</text>
-      <text x={x + 12} y={y + 36} fontSize="10" fill="#6c7078" fontFamily="IBM Plex Mono">{sub}</text>
+      <text x={x + 23} y={y + 19} fontSize="11.5" fontWeight="600" fill="#13202b" fontFamily="Barlow">{title}</text>
+      <text x={x + 12} y={y + 36} fontSize="10" fill="#627485" fontFamily="Geist Mono">{sub}</text>
     </g>
   );
   const apps = instances.length ? instances : [{ name: 'app-1' }];
   return (
     <svg className="topo" viewBox="0 0 560 196" role="img" aria-label="System topology">
-      <defs><marker id="tp-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#9a9da3" /></marker></defs>
+      <defs><marker id="tp-a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#96a4b0" /></marker></defs>
       {box(10, 75, 92, 'Browser', 'WebSocket x' + apps.length, true, 'b')}
       {apps.slice(0, 2).map((a, i) => box(150, 30 + i * 90, 120, a.name, 'FastAPI :' + (8000 + i), sockets[a.name] === 'open', a.name))}
-      {box(330, 10, 220, 'MySQL primary', `InnoDB · server ${m?.mysql?.server_id ?? '?'} · binlog+GTID`, h.mysql, 'p')}
-      {box(330, 94, 220, 'MySQL replica', `lag ${rp.lag_ms ?? '?'} ms · apply ${rp.sql_running === 'Yes' ? 'on' : 'off'}`, h.replica && rp.sql_running === 'Yes', 'r')}
-      {box(330, 146, 220, 'Redis 7', `${m?.redis?.keys ?? '?'} keys · ${m?.redis?.used_memory ?? ''}`, h.redis, 'd')}
-      <g stroke="#9a9da3" strokeWidth="1.2" fill="none">
+      {box(330, 10, 220, 'MySQL primary', `InnoDB, server ${m?.mysql?.server_id ?? '?'}, binlog+GTID`, h.mysql, 'p')}
+      {box(330, 94, 220, 'MySQL replica', `lag ${rp.lag_ms ?? '?'} ms, apply ${rp.sql_running === 'Yes' ? 'on' : 'off'}`, h.replica && rp.sql_running === 'Yes', 'r')}
+      {box(330, 146, 220, 'Redis 7', `${m?.redis?.keys ?? '?'} keys, ${m?.redis?.used_memory ?? ''}`, h.redis, 'd')}
+      <g stroke="#96a4b0" strokeWidth="1.2" fill="none">
         <path d="M102 98H126V53H150" markerEnd="url(#tp-a)" />
         {apps.length > 1 && <path d="M126 98V143H150" markerEnd="url(#tp-a)" />}
         <path d="M270 53H300V33H330" markerEnd="url(#tp-a)" />
@@ -312,7 +315,7 @@ function Topology({ m }) {
         {apps.length > 1 && <path d="M270 143H300" />}
         <path d="M440 56V94" strokeDasharray="4 3" markerEnd="url(#tp-a)" />
       </g>
-      <text x="446" y="80" fontSize="9.5" fill="#6c7078" fontFamily="IBM Plex Mono">binlog</text>
+      <text x="446" y="80" fontSize="9.5" fill="#627485" fontFamily="Geist Mono">binlog</text>
     </svg>
   );
 }
@@ -337,23 +340,23 @@ function MetricsTab() {
   return (
     <div className="stack">
       <Topology m={m} />
-      <div className="section-title"><h2 style={{ fontSize: 13.5 }}>MySQL primary</h2><p>SHOW GLOBAL STATUS, INNODB_METRICS · uptime {my.uptime_s ?? '-'} s · {my.isolation}</p></div>
+      <div className="section-title"><h2 style={{ fontSize: 15 }}>MySQL primary</h2><p>SHOW GLOBAL STATUS, INNODB_METRICS, uptime {my.uptime_s ?? '-'} s, {my.isolation}</p></div>
       <div className="mcards">
-        <MCard k="Queries per second" v={my.rates?.qps} points={h.qps} color="#2a55c9" s="includes this console's own polling" />
-        <MCard k="Transactions per second" v={my.tps} points={h.tps} color="#0f5f4b" s={`${my.commits_total ?? '-'} commits · ${my.rollbacks_total ?? '-'} rollbacks`} />
-        <MCard k="Rows read per second" v={my.rates?.rows_read} points={h.rows_read} color="#7a3fa8" />
-        <MCard k="Rows written per second" v={my.rates?.rows_written} points={h.rows_written} color="#a8650f" s="inserted + updated + deleted" />
-        <MCard k="Buffer pool hit ratio" v={my.hit_ratio} unit="%" points={h.hit_ratio} color="#1d7a46" max={100} s={`${my.buffer_pool_used_pct ?? '-'}% of pages used · ${my.dirty_pages ?? '-'} dirty`} />
-        <MCard k="Row lock waits" v={my.row_lock_waits_total} s={`${my.row_lock_current_waits ?? 0} waiting now · ${my.row_lock_time_ms ?? 0} ms waited`} points={h.lock_waits} color="#a8650f" />
-        <MCard k="Deadlocks detected" v={my.deadlocks_total} s={`${my.lock_timeouts_total ?? 0} lock wait timeouts`} points={h.deadlocks} color="#b42d24" />
+        <MCard k="Queries per second" v={my.rates?.qps} points={h.qps} color="#13202b" s="includes this console's own polling" />
+        <MCard k="Transactions per second" v={my.tps} points={h.tps} color="#13202b" s={`${my.commits_total ?? '-'} commits, ${my.rollbacks_total ?? '-'} rollbacks`} />
+        <MCard k="Rows read per second" v={my.rates?.rows_read} points={h.rows_read} color="#13202b" />
+        <MCard k="Rows written per second" v={my.rates?.rows_written} points={h.rows_written} color="#13202b" s="inserted + updated + deleted" />
+        <MCard k="Buffer pool hit ratio" v={my.hit_ratio} unit="%" points={h.hit_ratio} color="#13202b" max={100} s={`${my.buffer_pool_used_pct ?? '-'}% of pages used, ${my.dirty_pages ?? '-'} dirty`} />
+        <MCard k="Row lock waits" v={my.row_lock_waits_total} s={`${my.row_lock_current_waits ?? 0} waiting now, ${my.row_lock_time_ms ?? 0} ms waited`} points={h.lock_waits} color="#13202b" />
+        <MCard k="Deadlocks detected" v={my.deadlocks_total} s={`${my.lock_timeouts_total ?? 0} lock wait timeouts`} points={h.deadlocks} color="#d23a4a" />
         <MCard k="History list length" v={my.history_list_length} s="undo records waiting for purge (MVCC)" />
-        <MCard k="Connections" v={my.threads_connected} s={`${my.threads_running ?? 0} running · max used ${my.max_used_connections ?? '-'}`} points={h.threads_running} color="#3d4757" />
-        <MCard k="Network" v={bytes(my.bytes_in)} s={`in · ${bytes(my.bytes_out)} out`} />
+        <MCard k="Connections" v={my.threads_connected} s={`${my.threads_running ?? 0} running, max used ${my.max_used_connections ?? '-'}`} points={h.threads_running} color="#13202b" />
+        <MCard k="Network" v={bytes(my.bytes_in)} s={`in, ${bytes(my.bytes_out)} out`} />
       </div>
-      <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Replication</h2><p>SHOW REPLICA STATUS on icu_mysql_replica</p></div>
+      <div className="section-title"><h2 style={{ fontSize: 15 }}>Replication</h2><p>SHOW REPLICA STATUS on icu_mysql_replica</p></div>
       <div className="mcards">
-        <MCard k="Replica lag" v={rp.lag_ms} unit="ms" points={h.replica_lag_ms} color="#5b49b8" s={`Seconds_Behind_Source ${rp.seconds_behind ?? '-'}`} />
-        <MCard k="Threads" v={`${rp.io_running === 'Yes' ? 'IO on' : 'IO off'} · ${rp.sql_running === 'Yes' ? 'SQL on' : 'SQL off'}`} s={`source ${rp.source || '-'} · super_read_only ${rp.super_read_only ? 'ON' : 'OFF'}`} />
+        <MCard k="Replica lag" v={rp.lag_ms} unit="ms" points={h.replica_lag_ms} color="#13202b" s={`Seconds_Behind_Source ${rp.seconds_behind ?? '-'}`} />
+        <MCard k="Threads" v={`${rp.io_running === 'Yes' ? 'IO on' : 'IO off'}, ${rp.sql_running === 'Yes' ? 'SQL on' : 'SQL off'}`} s={`source ${rp.source || '-'}, super_read_only ${rp.super_read_only ? 'ON' : 'OFF'}`} />
         <div className="mcard" style={{ gridColumn: 'span 2' }}>
           <div className="k">GTID executed</div>
           <div className="mono" style={{ fontSize: 11, wordBreak: 'break-all', marginTop: 4 }}>primary: {my.gtid}</div>
@@ -361,13 +364,13 @@ function MetricsTab() {
           {rp.last_error && <div className="errline" style={{ color: 'var(--danger)' }}>{rp.last_error}</div>}
         </div>
       </div>
-      <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Redis</h2><p>INFO</p></div>
+      <div className="section-title"><h2 style={{ fontSize: 15 }}>Redis</h2><p>INFO</p></div>
       <div className="mcards">
-        <MCard k="Ops per second" v={rd.ops} points={h.redis_ops} color="#a33545" />
-        <MCard k="Memory" v={rd.used_memory} s={`${rd.keys ?? '-'} keys · ${rd.clients ?? '-'} clients`} />
+        <MCard k="Ops per second" v={rd.ops} points={h.redis_ops} color="#13202b" />
+        <MCard k="Memory" v={rd.used_memory} s={`${rd.keys ?? '-'} keys, ${rd.clients ?? '-'} clients`} />
         <MCard k="Keyspace hit ratio" v={rd.hit_ratio} unit="%" s={`${rd.commands_total ?? '-'} commands since start`} />
       </div>
-      <div className="section-title"><h2 style={{ fontSize: 13.5 }}>Table sizes</h2><p>information_schema.TABLES + COUNT(*)</p></div>
+      <div className="section-title"><h2 style={{ fontSize: 15 }}>Table sizes</h2><p>information_schema.TABLES + COUNT(*)</p></div>
       <PlainTable rows={m?.tables || []} columns={['name', 'rows', { key: 'data_bytes', label: 'data', render: (r) => bytes(r.data_bytes) }, { key: 'index_bytes', label: 'indexes', render: (r) => bytes(r.index_bytes) }]} />
     </div>
   );
@@ -432,14 +435,14 @@ export default function Console({ onCollapse, standalone }) {
   return (
     <aside className="console">
       <div className="console-head">
-        <span className="title">Live database</span>
-        <span className="live-tag"><i className="dot up" /><ShinyText text="LIVE" color="#1d7a46" shineColor="#8fd9b1" speed={2.4} /></span>
+        <span className="title">Database monitor</span>
+        <span className="live-tag"><i className="dot" />live</span>
         <span className="grow" />
         <Infra />
         {!standalone && <a className="btn sm ghost" href="/console" target="_blank" rel="noreferrer" title="Open in its own window">Pop out</a>}
         {onCollapse && <button className="btn sm ghost" onClick={onCollapse} title="Collapse">⟩</button>}
       </div>
-      <Strip m={m} />
+      <Vitals m={m} />
       <nav className="tabs small">
         {TABS.map(([k, label]) => (
           <button key={k} className={`tab ${consoleTab === k ? 'active' : ''}`} onClick={() => setConsoleTab(k)}>

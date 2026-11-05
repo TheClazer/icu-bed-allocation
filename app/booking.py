@@ -26,11 +26,18 @@ SLEEP(2) to widen the race window. Two requests both see the bed as FREE and bot
 INSERT a HELD reservation. The UNIQUE index one_active_booking_per_bed lets only
 the first one in; the second gets MySQL error 1062.
 """
+from decimal import Decimal
+
 import pymysql
 
 from . import db, meta, state
 from . import redis_client as rc
 from .config import HOLD_MINUTES, SEARCH_RADIUS_KM
+
+
+def dec(v):
+    """Coordinates as DECIMAL literals in SQL (12.9299, not 12.9299e0)."""
+    return Decimal(f"{float(v):.6f}")
 
 
 def find_candidates(s, lat, lon, bed_type_id):
@@ -43,7 +50,7 @@ def find_candidates(s, lat, lon, bed_type_id):
     except Exception:
         rows = s.run(
             "SELECT hospital_id, ROUND(ST_Distance_Sphere(POINT(longitude, latitude), POINT(%s, %s)) / 1000, 2) AS km "
-            "FROM hospital ORDER BY km", (lon, lat))
+            "FROM hospital ORDER BY km", (dec(lon), dec(lat)))
         near = [(r["hospital_id"], float(r["km"])) for r in rows if float(r["km"]) <= SEARCH_RADIUS_KM]
         return near, near, "MySQL ST_Distance_Sphere (Redis unavailable)"
 
@@ -107,7 +114,7 @@ def book(user_id, patient_name, age, gender, bed_type_id, lat, lon, severity,
                 patient_id = s.lastrowid
                 s.run("INSERT INTO bed_request (patient_id, raised_by, bed_type_id, severity, pickup_lat, pickup_lon, raw_text)\n"
                       "VALUES (%s, %s, %s, %s, %s, %s, %s)",
-                      (patient_id, user_id, bed_type_id, severity, lat, lon, raw_text))
+                      (patient_id, user_id, bed_type_id, severity, dec(lat), dec(lon), raw_text))
                 request_id = s.lastrowid
                 result.update(patient_id=patient_id, request_id=request_id)
 

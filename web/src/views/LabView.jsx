@@ -58,7 +58,7 @@ function Side({ title, r }) {
         <b>{title}</b>
         <Status value={outcome} />
         <span className="grow" />
-        <span className="mono faint" style={{ fontSize: 10.5 }}>{r.tx} · conn {r.conn}</span>
+        <span className="mono faint" style={{ fontSize: 10.5 }}>{r.tx}, conn {r.conn}</span>
       </div>
       <div className="side-body">
         {outcome === 'HELD' && <div style={{ marginBottom: 6 }}>Holds bed <b className="mono">{r.bed_id}</b> at {r.hospital}</div>}
@@ -110,7 +110,7 @@ UNIQUE KEY one_active_booking_per_bed (active_bed_id)   -- NULLs are ignored by 
         <>
           <div className="muted" style={{ marginBottom: 8 }}>Bed <b className="mono">{res.bed_id}</b> ({res.bed_type}) at {res.hospital}, both requests from {res.area}
             {res.across_instances ? ', A served by app-1 and B by app-2: two processes, one database.' : '.'}</div>
-          <div className="versus"><Side title="Request A · KA-01" r={res.A} /><Side title="Request B · KA-02" r={res.B} /></div>
+          <div className="versus"><Side title="Request A, KA-01" r={res.A} /><Side title="Request B, KA-02" r={res.B} /></div>
           <div className={`verdict ${res.live_holds_on_bed === 1 ? 'ok' : 'bad'}`}>{res.verdict} (SELECT COUNT(*) ... WHERE bed_id = {res.bed_id} AND status = 'HELD' returned {res.live_holds_on_bed})</div>
         </>
       )}
@@ -322,7 +322,7 @@ function ReplicationDemo() {
   });
   const side = (name, x) => (
     <div className="side">
-      <div className="side-head"><b>{name}</b><span className="grow" />{x?.beds && <span className="mono faint" style={{ fontSize: 11 }}>FREE {x.beds.free} · HELD {x.beds.held} · OCC {x.beds.occupied}</span>}</div>
+      <div className="side-head"><b>{name}</b><span className="grow" />{x?.beds && <span className="mono faint" style={{ fontSize: 11 }}>FREE {x.beds.free}, HELD {x.beds.held}, OCC {x.beds.occupied}</span>}</div>
       <div className="side-body">
         {x?.error ? <div className="muted">{x.error}</div> : (
           <>

@@ -1,15 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import ClickSpark from './reactbits/ClickSpark.jsx';
-import SpotlightCard from './reactbits/SpotlightCard.jsx';
-
-// Card surface with a faint React Bits spotlight that follows the pointer.
+import { useEffect, useMemo, useRef, useState } from 'react'; // eslint-disable-line no-unused-vars
 export function Panel({ children, className = '', style, ...rest }) {
-  return (
-    <SpotlightCard theme="light" spotlightColor="#0f5f4b" intensity={0.06} spotlightSize={340} borderGlow={0.3}
-      flare={false} className={`spot ${className}`} style={{ padding: 0, borderRadius: 8, ...style }} {...rest}>
-      {children}
-    </SpotlightCard>
-  );
+  return <section className={`card ${className}`} style={style} {...rest}>{children}</section>;
 }
 
 export function Pill({ children, kind, className = '' }) {
@@ -37,14 +28,8 @@ export function Seg({ value, options, onChange, full, size }) {
   );
 }
 
-// Primary action with a small React Bits spark on click.
-export function ActionButton({ children, className = 'btn primary', spark = '#0f5f4b', ...props }) {
-  return (
-    <ClickSpark sparkColor={spark} sparkSize={7} sparkRadius={16} sparkCount={7} duration={380}
-      style={{ display: 'inline-flex' }}>
-      <button type="button" className={className} {...props}>{children}</button>
-    </ClickSpark>
-  );
+export function ActionButton({ children, className = 'btn primary', spark, ...props }) {
+  return <button type="button" className={className} {...props}>{children}</button>;
 }
 
 // ---------------------------------------------------------------- SQL highlighting
@@ -77,7 +62,7 @@ export function SqlText({ sql }) {
 }
 
 // ---------------------------------------------------------------- sparkline
-export function Sparkline({ points, color = '#0f5f4b', height = 30, max }) {
+export function Sparkline({ points, color = '#13202b', height = 30, max }) {
   const vals = (points || []).map((p) => (p && p[1] != null ? Number(p[1]) : null));
   const w = 160;
   const nums = vals.filter((v) => v != null);
@@ -201,8 +186,8 @@ export function PlainTable({ columns, rows, maxHeight, highlight }) {
 }
 
 export function TxChip({ tx }) {
-  const colors = ['#2a55c9', '#0f5f4b', '#a8650f', '#7a3fa8', '#b42d24', '#1f7a8c', '#5b6b1f', '#8a4b2a'];
+  // two tones alternate so neighbouring transactions in the log stay distinguishable
   const n = parseInt(String(tx).replace(/\D/g, ''), 10) || 0;
-  const bg = tx === 'SYS' ? '#5b49b8' : colors[n % colors.length];
+  const bg = tx === 'SYS' ? '#627485' : n % 2 ? '#1f4fd1' : '#13202b';
   return <span className="txid" style={{ background: bg }}>{tx}</span>;
 }

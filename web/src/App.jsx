@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import BlurText from './components/reactbits/BlurText.jsx';
+import Cover from './views/Cover.jsx';
 import { Seg, Dot } from './components/ui.jsx';
 import { api, post } from './lib/api.js';
 import { live } from './lib/live.js';
@@ -16,10 +16,10 @@ export const useApp = () => useContext(AppCtx);
 function BrandMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-      <rect width="32" height="32" rx="7" fill="#0f5f4b" />
+      <rect width="32" height="32" rx="6" fill="#13202b" />
       <path d="M7 21h18M7 21v-7M25 21v-4.5a2.5 2.5 0 0 0-2.5-2.5H14v7" stroke="#fff" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
       <circle cx="10.5" cy="16.5" r="1.7" fill="#fff" />
-      <path d="M21 6.5v5M18.5 9h5" stroke="#9fe0c8" strokeWidth="1.8" strokeLinecap="round" />
+      <path d="M21 6.5v5M18.5 9h5" stroke="#7d9cf2" strokeWidth="1.8" strokeLinecap="round" />
     </svg>
   );
 }
@@ -51,12 +51,18 @@ function Toasts() {
 
 export default function App() {
   const consoleOnly = window.location.pathname.startsWith('/console');
+  const [cover, setCover] = useState(() => {
+    if (window.location.hash) return false;
+    try { return sessionStorage.getItem('icu.cover') !== 'seen'; } catch { return true; }
+  });
   const [meta, setMeta] = useState(null);
   const [userId, setUserId] = useState(() => Number(localStorage.getItem('icu.user')) || 1);
-  const [tab, setTab] = useState(() => localStorage.getItem('icu.tab') || 'request');
-  const [consoleTab, setConsoleTab] = useState('tables');
+  // deep links: /#tab=lab&console=xray&table=reservation
+  const link = useMemo(() => new URLSearchParams(window.location.hash.slice(1)), []);
+  const [tab, setTab] = useState(() => link.get('tab') || localStorage.getItem('icu.tab') || 'request');
+  const [consoleTab, setConsoleTab] = useState(() => link.get('console') || 'tables');
   const [consoleOpen, setConsoleOpen] = useState(true);
-  const [tableName, setTableName] = useState('bed');
+  const [tableName, setTableName] = useState(() => link.get('table') || 'bed');
   const [tableSource, setTableSource] = useState('primary');
   const [queryText, setQueryText] = useState(null);
   const settings = useStore(live, (s) => s.settings);
@@ -95,13 +101,17 @@ export default function App() {
         <div className="console-page">
           <header className="topbar">
             <div className="brand"><BrandMark /><div><div className="brand-title">Live database console</div>
-              <div className="brand-sub">City ICU Bed Allocation, MySQL 8 + Redis 7</div></div></div>
+              <div className="brand-sub">City ICU bed allocation, MySQL 8 and Redis 7</div></div></div>
           </header>
           <Console standalone />
         </div>
         <Toasts />
       </AppCtx.Provider>
     );
+  }
+
+  if (cover) {
+    return <Cover BrandMark={BrandMark} onEnter={() => { try { sessionStorage.setItem('icu.cover', 'seen'); } catch { /* private mode */ } setCover(false); }} />;
   }
 
   const users = meta?.users || [];
@@ -111,14 +121,13 @@ export default function App() {
     <AppCtx.Provider value={ctx}>
       <div className="shell">
         <header className="topbar">
-          <div className="brand">
+          <button type="button" className="brand" onClick={() => setCover(true)} title="Back to the cover">
             <BrandMark />
             <div>
-              <BlurText text="City ICU Bed Allocation" className="brand-title" delay={70} animateBy="words"
-                direction="top" distance={8} blur={6} trigger="load" />
-              <div className="brand-sub">MySQL 8 InnoDB + Redis 7 · DBMS Lab CD252IA, RVCE</div>
+              <div className="brand-title">City ICU bed allocation</div>
+              <div className="brand-sub">MySQL 8 and Redis 7, DBMS Lab CD252IA</div>
             </div>
-          </div>
+          </button>
           <div className="spacer" />
           <div className="ctl">
             <span className="ctl-label">Acting as</span>

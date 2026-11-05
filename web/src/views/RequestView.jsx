@@ -72,7 +72,7 @@ function ResultCard({ result, onAdmit, onCancel, now, fetchedAt }) {
         <span className="card-title">Allocation result</span>
         <Status value={result.outcome} />
         <span className="grow" />
-        <span className="muted mono" style={{ fontSize: 11 }}>{result.tx} · conn {result.conn} · {result.mode === 'safe' ? 'row lock' : 'no lock'}</span>
+        <span className="muted mono" style={{ fontSize: 11 }}>{result.tx}, conn {result.conn}, {result.mode === 'safe' ? 'row lock' : 'no lock'}</span>
       </div>
       <div className="card-body stack">
         {result.outcome === 'HELD' && (
@@ -81,7 +81,7 @@ function ResultCard({ result, onAdmit, onCancel, now, fetchedAt }) {
               <div className="bed-badge"><div><b>{result.bed_id}</b><span>HELD</span></div></div>
               <dl className="kv">
                 <dt>Hospital</dt><dd>{result.hospital}</dd>
-                <dt>Ward</dt><dd>{result.ward} · {TYPE_LABEL[result.bed_type_id]}</dd>
+                <dt>Ward</dt><dd>{result.ward}, {TYPE_LABEL[result.bed_type_id]}</dd>
                 <dt>Distance</dt><dd className="mono">{result.km} km from {result.area}</dd>
                 <dt>Hold</dt><dd className="mono">{left > 0 ? `${fmtClock(left)} left` : 'expired, waiting for the MySQL event'}</dd>
               </dl>
@@ -104,7 +104,7 @@ function ResultCard({ result, onAdmit, onCancel, now, fetchedAt }) {
           </div>
         )}
         <div>
-          <div className="label" style={{ marginBottom: 6 }}>How it was decided · {result.search?.source}</div>
+          <div className="label" style={{ marginBottom: 6 }}>How it was decided, {result.search?.source}</div>
           <Trace trace={result.trace} />
         </div>
       </div>
@@ -129,7 +129,7 @@ function Holds({ userId, refreshKey }) {
     <Panel>
       <div className="card-head">
         <span className="card-title">Recent holds by this account</span>
-        <span className="card-sub">{rows.filter((r) => r.status === 'HELD').length} live · limit 5 (trigger)</span>
+        <span className="card-sub">{rows.filter((r) => r.status === 'HELD').length} live, limit 5 (trigger)</span>
       </div>
       <div className="holds">
         {rows.length === 0 && <div className="empty">No holds yet for this account.</div>}
@@ -141,8 +141,8 @@ function Holds({ userId, refreshKey }) {
               <div style={{ minWidth: 0 }}>
                 <div className="row" style={{ gap: 6 }}><Status value={r.status} />
                   <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.patient}</span></div>
-                <div className="muted" style={{ fontSize: 11.5 }}>{r.hospital} · {TYPE_LABEL[r.bed_type_id]} · res #{r.reservation_id}
-                  {r.status === 'HELD' && <span className="mono"> · {left > 0 ? `${fmtClock(left)} left` : 'past expiry'}</span>}</div>
+                <div className="muted" style={{ fontSize: 11.5 }}>{r.hospital}, {TYPE_LABEL[r.bed_type_id]}, res #{r.reservation_id}
+                  {r.status === 'HELD' && <span className="mono">, {left > 0 ? `${fmtClock(left)} left` : 'past expiry'}</span>}</div>
               </div>
               {r.status === 'HELD' && (
                 <div className="row" style={{ gap: 4 }}>
@@ -265,7 +265,7 @@ export default function RequestView() {
                 <ActionButton className="btn primary lg" disabled={busy} onClick={submit}>
                   {busy ? 'Locking a bed...' : 'Find nearest bed and hold it'}
                 </ActionButton>
-                <span className="muted" style={{ fontSize: 12 }}>{SEVERITY[form.severity]} · {TYPE_LABEL[form.bed_type_id]} near {form.area}</span>
+                <span className="muted" style={{ fontSize: 12 }}>{SEVERITY[form.severity]}, {TYPE_LABEL[form.bed_type_id]} near {form.area}</span>
               </div>
             </div>
           </Panel>

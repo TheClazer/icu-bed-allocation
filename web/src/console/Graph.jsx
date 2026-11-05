@@ -24,7 +24,7 @@ export default function WaitForGraph({ nodes, edges, height = 170, victim, label
   if (!ids.length) {
     return (
       <svg className="graph" viewBox="0 0 520 90" role="img" aria-label="No lock waits">
-        <text x="260" y="50" textAnchor="middle" fontSize="12" fill="#9a9da3" fontFamily="IBM Plex Sans">No transaction is waiting for a lock right now</text>
+        <text x="260" y="50" textAnchor="middle" fontSize="12" fill="#96a4b0" fontFamily="Barlow">No transaction is waiting for a lock right now</text>
       </svg>
     );
   }
@@ -43,8 +43,8 @@ export default function WaitForGraph({ nodes, edges, height = 170, victim, label
   return (
     <svg className="graph" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Wait-for graph">
       <defs>
-        <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#6c7078" /></marker>
-        <marker id="wf-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#b42d24" /></marker>
+        <marker id="wf-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#627485" /></marker>
+        <marker id="wf-arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#d23a4a" /></marker>
       </defs>
       {edges.map((e, i) => {
         const a = pos[e.from];
@@ -65,9 +65,9 @@ export default function WaitForGraph({ nodes, edges, height = 170, victim, label
         const ey = b.y - (dy / len) * 32 + bend * 0.25;
         return (
           <g key={i}>
-            <path d={`M${sx} ${sy}Q${mx} ${my} ${ex} ${ey}`} fill="none" stroke={red ? '#b42d24' : '#6c7078'} strokeWidth={red ? 2 : 1.4}
+            <path d={`M${sx} ${sy}Q${mx} ${my} ${ex} ${ey}`} fill="none" stroke={red ? '#d23a4a' : '#627485'} strokeWidth={red ? 2 : 1.4}
               strokeDasharray={red ? '' : '5 4'} markerEnd={`url(#${red ? 'wf-arrow-red' : 'wf-arrow'})`} />
-            <text x={mx} y={my + (bend < 0 ? -6 : 14)} textAnchor="middle" fontSize="10.5" fill={red ? '#b42d24' : '#6c7078'} fontFamily="IBM Plex Mono">
+            <text x={mx} y={my + (bend < 0 ? -6 : 14)} textAnchor="middle" fontSize="10.5" fill={red ? '#d23a4a' : '#627485'} fontFamily="Geist Mono">
               {e.label || 'waits for'}
             </text>
           </g>
@@ -78,10 +78,10 @@ export default function WaitForGraph({ nodes, edges, height = 170, victim, label
         const isVictim = victim === id;
         return (
           <g key={id}>
-            <circle cx={p.x} cy={p.y} r="28" fill={isVictim ? '#fbe9e7' : '#fff'} stroke={isVictim ? '#b42d24' : '#17191c'} strokeWidth="1.5" />
-            <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="12.5" fontWeight="600" fill="#17191c" fontFamily="IBM Plex Mono">{id}</text>
-            {labels[id] && <text x={p.x} y={p.y + 44} textAnchor="middle" fontSize="10.5" fill="#6c7078" fontFamily="IBM Plex Sans">{labels[id]}</text>}
-            {isVictim && <text x={p.x} y={p.y - 36} textAnchor="middle" fontSize="10" fontWeight="600" fill="#b42d24" fontFamily="IBM Plex Mono">VICTIM, ROLLED BACK</text>}
+            <circle cx={p.x} cy={p.y} r="28" fill={isVictim ? '#fcecee' : '#fff'} stroke={isVictim ? '#d23a4a' : '#13202b'} strokeWidth="1.5" />
+            <text x={p.x} y={p.y + 4} textAnchor="middle" fontSize="12.5" fontWeight="600" fill="#13202b" fontFamily="Geist Mono">{id}</text>
+            {labels[id] && <text x={p.x} y={p.y + 44} textAnchor="middle" fontSize="10.5" fill="#627485" fontFamily="Barlow">{labels[id]}</text>}
+            {isVictim && <text x={p.x} y={p.y - 36} textAnchor="middle" fontSize="10" fontWeight="600" fill="#d23a4a" fontFamily="Geist Mono">VICTIM, ROLLED BACK</text>}
           </g>
         );
       })}

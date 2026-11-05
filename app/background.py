@@ -114,15 +114,15 @@ def _metrics_loop():
     metrics.enable_innodb_monitors()
     while True:
         t0 = time.time()
+        try:
+            metrics.sample_once()      # sample first: the replica has had a full second to apply the last probe
+        except Exception:
+            pass
         if INSTANCE == "app-1" and health.get("mysql"):
             try:
                 metrics.write_probe()
             except Exception:
                 pass
-        try:
-            metrics.sample_once()
-        except Exception:
-            pass
         time.sleep(max(0.2, 1.0 - (time.time() - t0)))
 
 
