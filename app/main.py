@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from . import background, booking, containers, db, demo, meta, metrics, nlp, state, transfer, xray
+from . import background, booking, db, demo, services, meta, metrics, nlp, state, transfer, xray
 from . import redis_client as rc
 from .areas import BY_NAME
 from .config import INSTANCE, PUBLIC_INSTANCES, WEB_DIR, parse_instances
@@ -64,7 +64,7 @@ def get_meta():
 
 @app.get("/api/health")
 def get_health():
-    return {"instance": INSTANCE, **background.health, "docker": containers.available()}
+    return {"instance": INSTANCE, **background.health, "native": services.available()}
 
 
 @app.get("/api/instances")

@@ -114,7 +114,10 @@ export default function App() {
   }, [place, dbSub, scenario, cover]);
 
   const setSetting = async (patch) => {
-    try { live.set({ settings: await post('/settings', patch) }); } catch (e) { toast(e.message, 'err'); }
+    // apply at once so a click that follows straight away already uses the new mode
+    const before = live.get().settings;
+    live.set({ settings: { ...before, ...patch } });
+    try { live.set({ settings: await post('/settings', patch) }); } catch (e) { live.set({ settings: before }); toast(e.message, 'err'); }
   };
 
   const go = (to, opts = {}) => {

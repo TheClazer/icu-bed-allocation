@@ -149,7 +149,7 @@ with sync_playwright() as p:
         c.locator(".graph").first.wait_for(timeout=T)
         c.get_by_role("radio", name="Ordered locks (prevention on)").click()
         c.get_by_role("button", name="Run both transfers").click()
-        c.get_by_text("Both transfers completed").wait_for(timeout=T)
+        c.get_by_text("Both transfers completed").first.wait_for(timeout=40000)
     check("Scenario: deadlock 1213, then ordered locks complete", deadlock, page)
 
     def hoarding():
@@ -179,7 +179,7 @@ with sync_playwright() as p:
         c.get_by_role("button", name="Book an ICU bed now").click()
         c.locator(".verdict").get_by_text("ST_Distance_Sphere").wait_for(timeout=T)
         c.get_by_role("button", name="Start Redis and rebuild").click()
-        c.get_by_text("Redis up").wait_for(timeout=40000)
+        c.get_by_text("Redis up").first.wait_for(timeout=40000)
     check("Scenario: Redis outage falls back to MySQL, then rebuilds", redis, page)
 
     def yourself():

@@ -1,4 +1,4 @@
-"""Tests run against the live stack: docker compose exec app python -m pytest -q tests
+"""Tests run against the live system (start it with run.bat): .venv/Scripts/python -m pytest -q tests
 They reset the demo data first, so do not run them during a live demo."""
 import sys
 import time

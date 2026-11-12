@@ -10,13 +10,24 @@ and replication delay shows up live while you use it.
 
 ## Run it
 
-Needs Docker Desktop (Windows, macOS or Linux). From this folder:
+Windows, no Docker and no admin rights. Needs Python 3.10+ (and Node.js 20 only if `web/dist` is missing).
+Double-click **run.bat**. It:
+
+1. creates `.venv` and installs `requirements.txt` (first time only),
+2. downloads portable MySQL 8.0.40 and Redis 7.4 into `runtime/` (first time only, about 260 MB),
+3. initialises two MySQL data directories, loads `db/*.sql`, connects the replica with GTID replication,
+4. starts MySQL primary, MySQL replica, Redis and two app instances as ordinary processes,
+5. opens the browser.
+
+`stop.bat` stops everything; data is kept. The same from a terminal:
 
 ```bash
-docker compose up -d --build
+.venv\Scripts\python -m app.services up
+.venv\Scripts\python -m app.services status
+.venv\Scripts\python -m app.services down
 ```
 
-First start takes 1 to 3 minutes (image build, MySQL initialisation, replica catch-up). Then open:
+First start takes 2 to 4 minutes (download, MySQL initialisation). Later starts take about 15 seconds. Then open:
 
 | What | Where |
 | --- | --- |
@@ -30,13 +41,13 @@ First start takes 1 to 3 minutes (image build, MySQL initialisation, replica cat
 Run the automated tests (they reset the demo data, so not during a live demo):
 
 ```bash
-docker compose exec app python -m pytest -q tests
+.venv\Scripts\python -m pytest -q tests
 ```
 
-Start completely fresh (deletes both MySQL data volumes):
+Start completely fresh (deletes both MySQL data directories, the next run.bat rebuilds them from `db/*.sql`):
 
 ```bash
-docker compose down -v
+.venv\Scripts\python -m app.services fresh
 ```
 
 ## Architecture
@@ -61,10 +72,11 @@ browser --> app-1 (FastAPI :8000) --+--> MySQL 8 primary   InnoDB, binlog + GTID
 
 ```text
 db/        schema.sql, triggers.sql, events.sql, seed.sql, readonly_user.sql,
-           replication_user.sql, replica_init.sql
+           replication_user.sql
 app/       main.py (API + WebSocket), db.py (logged SQL sessions), booking.py, transfer.py,
            xray.py (InnoDB internals), metrics.py, redis_client.py, nlp.py, demo.py,
-           background.py (health, audit-log watcher, metrics), containers.py (docker control)
+           background.py (health, audit-log watcher, metrics),
+           services.py (downloads, starts and stops MySQL, Redis and the app processes)
 web/       React app (src/views, src/console, src/components/reactbits)
 tests/     test_race.py, test_unique_guard.py, test_deadlock.py, test_expiry.py, test_audit_and_nlp.py
 docs/      viva_guide.md
@@ -91,7 +103,7 @@ Keep the **Live database** panel open on the right the whole time. Every step na
    shows the cycle and the victim. Switch to *Ordered locks*, run again: one waits, both complete.
    Open the X-Ray tab while it runs to see the lock wait live.
 5. **Crash recovery (2 min).** Demo 4. The transfer pauses mid-way; X-Ray shows the open transaction with
-   rows modified while other sessions still see the old values. MySQL is SIGKILLed and restarts. Point at:
+   rows modified while other sessions still see the old values. The mysqld process is killed outright and restarted. Point at:
    the before / after table (identical), the transfer row gone, and MySQL's own log line
    "Rolling back trx with id ..., 3 rows to undo".
 6. **Bed blocking and audit (1 min).** Demo 5. Spam 8 holds: 5 held, 3 refused by the trigger (1644).
@@ -108,5 +120,5 @@ Keep the **Live database** panel open on the right the whole time. Every step na
 
 - All data is simulated (tools/make_seed.py). No real patients or hospitals.
 - Simulated clock: hold expiry uses `sim_now()` (NOW() plus `sim_clock.offset_minutes`).
-- Schema changes need a fresh volume: `docker compose down -v` then `docker compose up -d --build`.
+- Schema changes need fresh data: `stop.bat`, then `python -m app.services fresh`, then `run.bat`.
 - No PHP and no MongoDB anywhere.

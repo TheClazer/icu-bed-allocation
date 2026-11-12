@@ -1,4 +1,4 @@
-"""Runtime configuration, read from environment variables set in docker-compose.yml."""
+"""Runtime configuration, read from environment variables set by app/services.py."""
 import os
 from pathlib import Path
 
@@ -20,15 +20,11 @@ READONLY_USER = {"user": "icu_readonly", "password": "readonly"}
 REDIS_HOST = os.getenv("REDIS_HOST", "127.0.0.1")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
-MYSQL_CONTAINER = os.getenv("MYSQL_CONTAINER", "icu_mysql")
-REPLICA_CONTAINER = os.getenv("REPLICA_CONTAINER", "icu_mysql_replica")
-REDIS_CONTAINER = os.getenv("REDIS_CONTAINER", "icu_redis")
-
 # This app process, and every app instance the browser should listen to
 INSTANCE = os.getenv("INSTANCE_NAME", "app-1")
 # "app-1=http://localhost:8000,app-2=http://localhost:8001" as seen from the browser
 PUBLIC_INSTANCES = os.getenv("PUBLIC_INSTANCES", "app-1=http://localhost:8000")
-# the same instances as seen from inside the docker network
+# the same instances as the app processes reach each other
 INTERNAL_INSTANCES = os.getenv("INTERNAL_INSTANCES", "app-1=http://127.0.0.1:8000")
 
 

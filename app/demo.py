@@ -7,10 +7,10 @@ import urllib.request
 
 import pymysql
 
-from . import booking, containers, db, meta, state, transfer, xray
+from . import booking, db, services, meta, state, transfer, xray
 from . import redis_client as rc
 from .areas import BY_NAME
-from .config import (DB_DIR, INSTANCE, INTERNAL_INSTANCES, MYSQL_CONTAINER, REDIS_CONTAINER,
+from .config import (DB_DIR, INSTANCE, INTERNAL_INSTANCES,
                      parse_instances)
 from .hub import hub
 
@@ -180,8 +180,8 @@ def crash():
 
 def _crash():
     D = "crash"
-    if not containers.available():
-        return {"ok": False, "message": "Docker is not reachable from the app, so it cannot kill MySQL. Run the app with docker compose."}
+    if not services.pid_of("primary"):
+        return {"ok": False, "message": "MySQL was not started by run.bat, so the app cannot kill it. Start everything with run.bat."}
     pick = db.query(
         "SELECT o.bed_id AS from_bed, o.patient_id, f.bed_id AS to_bed, o.hospital_id "
         "FROM bed o JOIN bed f ON f.hospital_id = o.hospital_id AND f.bed_type_id = o.bed_type_id AND f.status = 'FREE' "
@@ -222,15 +222,17 @@ def _crash():
              "ok", outside=outside)
 
     killed_at = time.time()
-    progress(D, 4, "Sending SIGKILL to the MySQL container (no shutdown, no flush)")
-    containers.kill(MYSQL_CONTAINER)
+    err_log = services.error_log("primary")
+    log_from = err_log.stat().st_size if err_log.exists() else 0
+    progress(D, 4, "Killing the mysqld process (TerminateProcess: no shutdown, no flush)")
+    services.kill("primary")
     t.join(15)
     progress(D, 4, "MySQL is down. The paused transaction's connection is gone.", "ok")
     time.sleep(1.5)
 
     progress(D, 5, "Starting MySQL again: InnoDB runs crash recovery (redo, then undo of uncommitted work)")
-    containers.start(MYSQL_CONTAINER)
-    up = containers.wait_until(db.alive, timeout=150, every=1.0,
+    services.start_mysql("primary", wait=False)
+    up = services.wait_until(db.alive, timeout=150, every=1.0,
                                on_tick=lambda n: n % 3 == 0 and progress(D, 5, f"Waiting for MySQL to accept connections ({n} s)"))
     if not up:
         return {"ok": False, "message": "MySQL did not come back within 150 s", "before": before}
@@ -243,7 +245,7 @@ def _crash():
     transfer_row = db.query("SELECT transfer_id, status, note FROM transfer WHERE transfer_id = %s", (tid,)) if tid else []
     log_lines = []
     try:
-        log_lines = containers.logs_since(MYSQL_CONTAINER, killed_at - 1, RECOVERY_WORDS)[-14:]
+        log_lines = services.log_lines(err_log, log_from, RECOVERY_WORDS)[-14:]
     except Exception:
         pass
 
@@ -358,14 +360,15 @@ def reset():
 # 7. Redis outage
 # ---------------------------------------------------------------------------
 def redis_power(action):
-    if not containers.available():
-        return {"ok": False, "message": "Docker is not reachable from the app."}
     if action == "stop":
-        containers.stop(REDIS_CONTAINER)
-        db.log_system("docker stop icu_redis: Redis is down, search falls back to MySQL", label="Redis outage")
+        services.stop_redis()
+        db.log_system("redis-server stopped: Redis is down, search falls back to MySQL", label="Redis outage")
         return {"ok": True, "redis": False}
-    containers.start(REDIS_CONTAINER)
-    up = containers.wait_until(rc.alive, timeout=30, every=0.5)
+    try:
+        services.start_redis()
+    except Exception as exc:
+        return {"ok": False, "redis": False, "message": str(exc)}
+    up = services.wait_until(rc.alive, timeout=30, every=0.5)
     if up:
         rc.rebuild()
     return {"ok": up, "redis": up}

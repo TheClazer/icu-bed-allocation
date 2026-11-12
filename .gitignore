@@ -10,3 +10,4 @@ venv/
 Thumbs.db
 web/node_modules/
 web/dist/
+runtime/

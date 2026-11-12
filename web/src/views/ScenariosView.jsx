@@ -211,7 +211,7 @@ function CrashDemo() {
   const [res, setRes] = useState(null);
   const steps = useStore(live, (s) => s.demo.crash || NO_STEPS);
   const go = () => {
-    if (!window.confirm('This sends SIGKILL to the MySQL container. It restarts and recovers in about 10 to 30 seconds. Continue?')) return;
+    if (!window.confirm('This kills the mysqld process without a shutdown. It restarts and recovers in about 10 to 30 seconds. Continue?')) return;
     clearDemo('crash'); setRes(null);
     run(async () => setRes(await post('/demo/crash')));
   };
@@ -222,7 +222,7 @@ function CrashDemo() {
       controls={<ActionButton className="btn danger" spark="#b42d24" disabled={busy} onClick={go}>{busy ? 'Crash demo running...' : 'Start transfer, then kill MySQL'}</ActionButton>}
       watch={[{ label: 'X-Ray (the paused transaction)', tab: 'xray' }, { label: 'bed table', tab: 'tables', table: 'bed' }, { label: 'metrics (uptime resets)', tab: 'metrics' }]}
       explain={<>
-        <p style={{ margin: 0 }}>While paused, other sessions still read the old committed values: the half-done move is invisible to them (isolation). The kill is a SIGKILL: no clean shutdown, no buffer flush.</p>
+        <p style={{ margin: 0 }}>While paused, other sessions still read the old committed values: the half-done move is invisible to them (isolation). The process is killed outright: no clean shutdown, no buffer flush.</p>
         <p style={{ margin: 0 }}>On restart InnoDB runs crash recovery. It replays the redo log so every committed change is present (durability), then uses the undo log to roll back every transaction that never committed (atomicity). The transfer and both bed updates vanish together; holds committed before the crash are all still there.</p>
       </>}>
       {(steps.length > 0 || res) && (
@@ -360,7 +360,7 @@ function RedisDemo() {
   const book = () => run(async () => setR(await post('/requests', { user_id: userId, patient_name: 'Outage Test', age: 44, gender: 'M', bed_type_id: 1, area: 'Indiranagar', severity: 4 })));
   return (
     <Demo no="7" title="Redis outage" tags={['SQL vs NoSQL roles', 'Source of truth', 'Cache rebuild', 'Graceful degradation']}
-      what="Stop the Redis container and keep booking. Search falls back to a MySQL distance query; correctness never depended on Redis."
+      what="Stop the Redis server and keep booking. Search falls back to a MySQL distance query; correctness never depended on Redis."
       controls={<>
         <Pill kind={up ? 'ok' : 'err'}>Redis {up ? 'up' : 'down'}</Pill>
         <button className="btn danger" disabled={busy || !up} onClick={() => run(async () => { await post('/demo/redis/stop'); toast('Redis stopped'); })}>Stop Redis</button>

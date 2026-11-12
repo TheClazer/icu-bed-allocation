@@ -37,27 +37,31 @@ recovery and replication delay.
 
 ## Run, build, test
 
+No Docker. `app/services.py` runs portable MySQL 8.0.40 (primary + replica) and Redis 7.4 from `runtime/`
+(gitignored, downloaded on first run) plus two uvicorn processes.
+
 ```bash
-docker compose up -d --build          # or double-click run.bat (Windows); stop.bat stops it
-docker compose exec app python -m pytest -q tests   # resets demo data, not during a live demo
-docker compose down -v                # wipe both MySQL volumes (needed after schema changes)
+run.bat                                    # or: .venv\Scripts\python -m app.services up
+stop.bat                                   # or: .venv\Scripts\python -m app.services down
+.venv\Scripts\python -m app.services status
+.venv\Scripts\python -m pytest -q tests  # resets demo data, not during a live demo
+.venv\Scripts\python -m app.services fresh   # wipe both MySQL data dirs (needed after schema changes)
 ```
 
 - App instances: http://localhost:8000 (app-1), http://localhost:8001 (app-2); console only: `/console`.
 - Deep links: `/#tab=lab&console=xray&table=reservation` (tabs: request, dashboard, lab;
   console: tables, sql, xray, redis, metrics, query).
 - MySQL primary `localhost:3307`, replica `localhost:3308` (root / rootpass), Redis `6379`.
-- Backend code is volume-mounted: after editing `app/*.py` run `docker compose restart app app2`.
-- The frontend is baked into the image. Fast loop: `cd web && npx vite build`, then
-  `docker cp web/dist/. icu_app:/srv/web/dist` (and `icu_app_2`). `docker compose up -d --build` rebuilds properly.
+- After editing `app/*.py`: `stop.bat` then `run.bat` (MySQL data is kept). Logs: `runtime/logs/`.
+- The app serves `web/dist`. After frontend edits: `cd web && npx vite build`, then reload the browser.
 - `db/seed.sql` is generated: edit `tools/make_seed.py`, then `python tools/make_seed.py`.
 
 ## Layout
 
 ```text
-db/     schema.sql triggers.sql events.sql seed.sql readonly_user.sql replication_user.sql replica_init.sql
+db/     schema.sql triggers.sql events.sql seed.sql readonly_user.sql replication_user.sql
 app/    main.py (API + WebSocket)  db.py (logged sessions)  booking.py  transfer.py  xray.py  metrics.py
-        redis_client.py  nlp.py  demo.py  background.py (health, audit-log watcher, metrics)  containers.py
+        redis_client.py  nlp.py  demo.py  background.py (health, audit-log watcher, metrics)  services.py
 web/    React 18 + Vite. src/views (Request, Dashboard, Lab, Cover), src/console (live DB panel), src/lib
 tests/  race x50, unique guard, deadlock, expiry + Redis consistency, hold limit + audit, NLP
 docs/   viva_guide.md, screenshots/
@@ -74,4 +78,5 @@ docs/   viva_guide.md, screenshots/
   only by tailing `audit_log`; the watcher must handle `audit_log` being truncated by a reset.
 - Redis counters can lag a commit: before returning NO_BED the booking re-checks MySQL.
 - Store selectors in React (`useStore`) must return stable references (no `|| []` literals), or React loops.
-- The crash demo kills the `icu_mysql` container through the mounted Docker socket.
+- The crash demo kills the mysqld process by the pid in `runtime/pids/primary.pid` and restarts it via `services.start_mysql`;
+  recovery lines are read from `runtime/logs/primary.err`.

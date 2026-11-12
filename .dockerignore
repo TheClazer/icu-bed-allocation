@@ -1,7 +1,0 @@
-.git
-**/__pycache__
-.pytest_cache
-docs
-tools
-web/node_modules
-web/dist
