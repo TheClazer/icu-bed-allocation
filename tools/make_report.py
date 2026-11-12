@@ -455,8 +455,8 @@ table("2.1: Hardware requirements", ["Component", "Minimum", "Recommended"], [
 ], [1.6, 2.6, 2.1])
 section("2.2", "Software Requirements")
 table("2.2: Software requirements", ["Layer", "Software", "Version"], [
-    ["Operating system", "Windows 10/11 with WSL 2, Linux or macOS", "Current release"],
-    ["Containers", "Docker Desktop with Docker Compose v2", "Engine 24 or newer"],
+    ["Operating system", "Windows 10 or 11, 64-bit, no administrator rights needed", "Current release"],
+    ["Process manager", "app/services.py with portable MySQL and Redis builds", "Project script"],
     ["Relational database", "MySQL Community Server, InnoDB engine", "8.0"],
     ["NoSQL store", "Redis", "7.x"],
     ["Backend", "Python with FastAPI, Uvicorn and PyMySQL", "3.11"],
@@ -492,7 +492,7 @@ bullets([
 # ----------------------------------------------------------- chapter 3
 chapter(3, "System Design")
 section("3.1", "System Architecture")
-para("The system runs as five Docker containers on one machine: a MySQL 8 primary, a MySQL 8 read replica, "
+para("The system runs as five ordinary processes on one machine: a MySQL 8 primary, a MySQL 8 read replica, "
      "Redis 7 and two identical application instances written in Python with FastAPI. The browser talks to "
      "an application instance over HTTP and receives live updates over a WebSocket. Every application "
      "instance is stateless; all shared state lives in MySQL, so either instance can serve any request.")
@@ -554,7 +554,8 @@ para("The database layer is MySQL 8.0 with the InnoDB storage engine at its defa
      "isolation level, with the event scheduler, binary log and GTID replication enabled. Redis 7 provides "
      "the NoSQL store. The backend is Python 3.11 with FastAPI and PyMySQL; no ORM is used, so every "
      "statement the application sends is plain SQL that the interface can display. The frontend is a React "
-     "single-page application built with Vite. Docker Compose starts all five services with one command.")
+     "single-page application built with Vite. A small Python script, started by run.bat, downloads portable MySQL and Redis builds once, "
+     "initialises both databases and starts all five processes with one double-click.")
 
 section("4.2", "Booking Transaction")
 para("A booking first asks Redis for hospitals within 50 km of the pickup point, nearest first, and skips "
@@ -613,7 +614,7 @@ para("The production setting prevents the cycle by always locking the lower bed_
 
 section("4.5", "Crash Recovery and Replication")
 para("To demonstrate atomicity and durability, a transfer is paused after freeing the old bed but before "
-     "occupying the new one, and the MySQL container is killed with SIGKILL. On restart InnoDB replays the "
+     "occupying the new one, and the mysqld process is killed outright, with no shutdown and no buffer flush. On restart InnoDB replays the "
      "redo log so that every committed change is present, then uses the undo log to roll back the "
      "unfinished transaction. Holds committed before the crash survive, and the half-done transfer "
      "disappears completely.")
@@ -641,7 +642,7 @@ para("The interface is organised into three places so that only the current task
 # ----------------------------------------------------------- chapter 5
 chapter(5, "Testing and Results")
 section("5.1", "Automated Tests")
-para("The tests run against the live system inside the application container and reset the demonstration "
+para("The tests run against the live system and reset the demonstration "
      "data before each case. All twenty tests pass.")
 table("5.1: Automated test results", ["Test", "What is checked", "Result"], [
     ["Race, 50 runs", "Two simultaneous requests for the only free ventilator bed; exactly one HELD reservation each time", "Pass, 50 of 50"],
@@ -711,10 +712,10 @@ for i, r_ in enumerate(refs, 1):
 page_break()
 h = doc.add_paragraph(style="Heading 1"); h.paragraph_format.space_after = Pt(18); set_font(h.add_run("APPENDIX: RUNNING THE SYSTEM"), 14, bold=True)
 bullets([
-    "Install Docker Desktop and start it.",
-    "Double-click Start ICU Bed System.bat, or run docker compose up -d --build in the project folder.",
+    "Install Python 3.10 or newer. No Docker and no administrator rights are needed.",
+    "Double-click Start ICU Bed System.bat. The first run downloads MySQL and Redis once (about 260 MB) and sets up both databases.",
     "Open http://localhost:8000 for the application and http://localhost:8000/console for the live database view.",
-    "Run the automated tests with docker compose exec app python -m pytest -q tests.",
+    "Run the automated tests with .venv\Scripts\python -m pytest -q tests in the project folder.",
     "Stop the system with stop.bat; the data is kept for the next run.",
 ], numbered=True)
 
