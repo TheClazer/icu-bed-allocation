@@ -10,6 +10,7 @@ import '@fontsource/geist-mono/400.css';
 import '@fontsource/geist-mono/500.css';
 import '@fontsource/geist-mono/600.css';
 import './styles.css';
+import './structure.css';
 import App from './App.jsx';
 import { startLive } from './lib/live.js';
 

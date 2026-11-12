@@ -13,12 +13,12 @@ const TABS = [
 ];
 
 // ------------------------------------------------------------------ header strip
-function useMetrics(active = true) {
+export function useMetrics(active = true) {
   return usePoll('/metrics', 1000, { onEvents: false, active });
 }
 
 // The database as the patient: six vitals traced on ECG chart paper.
-function Vitals({ m }) {
+export function Vitals({ m }) {
   const my = m?.mysql || {};
   const rp = m?.replica || {};
   const rd = m?.redis || {};
@@ -47,7 +47,7 @@ function Vitals({ m }) {
   );
 }
 
-function Infra() {
+export function Infra() {
   const health = useStore(live, (s) => s.health);
   const sockets = useStore(live, (s) => s.sockets);
   const instances = useStore(live, (s) => s.instances);
@@ -70,7 +70,7 @@ const TABLE_GROUPS = [
   ['System', ['sim_clock', 'replication_probe']],
 ];
 
-function TablesTab() {
+export function TablesTab() {
   const { tableName, setTableName, tableSource, setTableSource } = useApp();
   const [filter, setFilter] = useState('');
   const { data, error } = usePoll(`/tables/${tableName}?source=${tableSource}`, 1000, { deps: [tableName, tableSource] });
@@ -92,7 +92,7 @@ function TablesTab() {
         <span className="muted mono" style={{ fontSize: 11 }}>{data ? `${data.total} rows${data.total > data.rows.length ? `, showing ${data.rows.length}` : ''}` : ''}</span>
       </div>
       {error && <div className="verdict bad">{error.message}</div>}
-      {data && data.name === tableName && <LiveTable columns={data.columns} rows={rows} pk={data.pk} maxHeight="calc(100vh - 290px)" />}
+      {data && data.name === tableName && <LiveTable columns={data.columns} rows={rows} pk={data.pk} maxHeight="calc(100vh - 250px)" />}
       <div className="row" style={{ gap: 12, marginTop: 8, fontSize: 11.5 }}>
         <span className="row" style={{ gap: 5 }}><i style={{ width: 10, height: 10, background: '#c9ecd5', borderRadius: 2 }} />inserted</span>
         <span className="row" style={{ gap: 5 }}><i style={{ width: 10, height: 10, background: '#fbe3b4', borderRadius: 2 }} />updated cell</span>
@@ -104,10 +104,12 @@ function TablesTab() {
 }
 
 // ------------------------------------------------------------------ SQL log
-function SqlTab() {
+export function SqlTab() {
   const sql = useStore(live, (s) => s.sql);
   const instances = useStore(live, (s) => s.instances);
-  const [q, setQ] = useState('');
+  const { txFilter } = useApp();
+  const [q, setQ] = useState(txFilter || '');
+  useEffect(() => { if (txFilter) setQ(txFilter); }, [txFilter]);
   const [inst, setInst] = useState('all');
   const [hideSys, setHideSys] = useState(false);
   const [paused, setPaused] = useState(false);
@@ -119,7 +121,8 @@ function SqlTab() {
     let l = paused && frozen ? frozen : sql;
     if (inst !== 'all') l = l.filter((e) => e.instance === inst);
     if (hideSys) l = l.filter((e) => e.kind !== 'NOTE' && e.kind !== 'REDIS');
-    if (q) { const f = q.toLowerCase(); l = l.filter((e) => `${e.sql} ${e.tx} ${e.label}`.toLowerCase().includes(f)); }
+    if (q && /^\d?T\d+$/.test(q.trim())) l = l.filter((e) => e.tx === q.trim());
+    else if (q) { const f = q.toLowerCase(); l = l.filter((e) => `${e.sql} ${e.tx} ${e.label}`.toLowerCase().includes(f)); }
     return l.slice(-300);
   }, [sql, q, inst, hideSys, paused, frozen]);
   useEffect(() => {
@@ -143,7 +146,7 @@ function SqlTab() {
         <button className="btn sm" onClick={() => { setPaused(!paused); setFrozen(paused ? null : sql); }}>{paused ? 'Resume' : 'Pause'}</button>
         <button className="btn sm ghost" onClick={() => { clearSql(); setFrozen(null); }}>Clear</button>
       </div>
-      <div className="tbl-wrap" ref={box} onScroll={onScroll} style={{ maxHeight: 'calc(100vh - 262px)' }}>
+      <div className="tbl-wrap" ref={box} onScroll={onScroll} style={{ maxHeight: 'calc(100vh - 230px)' }}>
         <div className="sqllog">
           {list.length === 0 && <div className="empty">Nothing yet. Book a bed or run a demo; every statement the backend sends to MySQL (and every Redis command) appears here.</div>}
           {list.map((e) => {
@@ -176,7 +179,7 @@ function SqlTab() {
 }
 
 // ------------------------------------------------------------------ X-Ray
-function XrayTab() {
+export function XrayTab() {
   const { data, error } = usePoll('/xray', 400, { onEvents: false });
   const trx = data?.transactions || [];
   const locks = (data?.locks || []).filter((l) => l.type === 'RECORD' || l.status === 'WAITING');
@@ -234,7 +237,7 @@ function XrayTab() {
 }
 
 // ------------------------------------------------------------------ Redis
-function RedisTab() {
+export function RedisTab() {
   const { data } = usePoll('/redis', 2000);
   const events = useStore(live, (s) => s.events);
   const [busy, setBusy] = useState(false);
@@ -283,7 +286,7 @@ function RedisTab() {
 }
 
 // ------------------------------------------------------------------ Metrics
-function Topology({ m }) {
+export function Topology({ m }) {
   const health = useStore(live, (s) => s.health);
   const sockets = useStore(live, (s) => s.sockets);
   const instances = useStore(live, (s) => s.instances);
@@ -331,7 +334,7 @@ function MCard({ k, v, unit, s, points, color, max }) {
   );
 }
 
-function MetricsTab() {
+export function MetricsTab() {
   const { data: m } = useMetrics();
   const my = m?.mysql || {};
   const rp = m?.replica || {};
@@ -388,7 +391,7 @@ const SAMPLES = [
   ['Try a write (refused)', "UPDATE bed SET status = 'FREE' WHERE bed_id = 101"],
 ];
 
-function QueryTab() {
+export function QueryTab() {
   const { queryText } = useApp();
   const [sql, setSql] = useState(SAMPLES[0][1]);
   const [target, setTarget] = useState('primary');

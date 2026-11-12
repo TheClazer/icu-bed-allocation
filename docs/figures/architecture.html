@@ -1,0 +1,58 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Architecture</title>
+<style>html,body{margin:0;background:#fff}svg{display:block}text{font-family:"Times New Roman",serif}</style></head>
+<body>
+<svg width="1100" height="520" viewBox="0 0 1100 520" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#111"/></marker></defs>
+  <g font-size="17" fill="#111">
+    <!-- browser -->
+    <rect x="20" y="200" width="170" height="96" fill="#fff" stroke="#111" stroke-width="1.6"/>
+    <text x="105" y="235" text-anchor="middle" font-weight="bold">Web browser</text>
+    <text x="105" y="259" text-anchor="middle" font-size="15">React interface</text>
+    <text x="105" y="279" text-anchor="middle" font-size="15">REST + WebSocket</text>
+    <!-- app instances -->
+    <rect x="290" y="110" width="210" height="96" fill="#fff" stroke="#111" stroke-width="1.6"/>
+    <text x="395" y="145" text-anchor="middle" font-weight="bold">App instance 1</text>
+    <text x="395" y="169" text-anchor="middle" font-size="15">Python FastAPI, port 8000</text>
+    <text x="395" y="189" text-anchor="middle" font-size="15">raw SQL, no ORM</text>
+    <rect x="290" y="300" width="210" height="96" fill="#fff" stroke="#111" stroke-width="1.6"/>
+    <text x="395" y="335" text-anchor="middle" font-weight="bold">App instance 2</text>
+    <text x="395" y="359" text-anchor="middle" font-size="15">Python FastAPI, port 8001</text>
+    <text x="395" y="379" text-anchor="middle" font-size="15">same code, stateless</text>
+    <!-- mysql -->
+    <rect x="640" y="30" width="270" height="120" fill="#fff" stroke="#111" stroke-width="2.2"/>
+    <text x="775" y="66" text-anchor="middle" font-weight="bold">MySQL 8 primary (InnoDB)</text>
+    <text x="775" y="90" text-anchor="middle" font-size="15">tables, constraints, row locks</text>
+    <text x="775" y="110" text-anchor="middle" font-size="15">triggers, event scheduler</text>
+    <text x="775" y="130" text-anchor="middle" font-size="15">binary log with GTID</text>
+    <rect x="640" y="215" width="270" height="96" fill="#fff" stroke="#111" stroke-width="1.6"/>
+    <text x="775" y="250" text-anchor="middle" font-weight="bold">MySQL 8 read replica</text>
+    <text x="775" y="274" text-anchor="middle" font-size="15">asynchronous replication</text>
+    <text x="775" y="294" text-anchor="middle" font-size="15">super_read_only</text>
+    <rect x="640" y="375" width="270" height="110" fill="#fff" stroke="#111" stroke-width="1.6"/>
+    <text x="775" y="410" text-anchor="middle" font-weight="bold">Redis 7</text>
+    <text x="775" y="434" text-anchor="middle" font-size="15">GEO set of hospitals</text>
+    <text x="775" y="454" text-anchor="middle" font-size="15">free-bed counters (cache)</text>
+    <text x="775" y="474" text-anchor="middle" font-size="15">pub/sub event channel</text>
+    <!-- docker note -->
+    <rect x="955" y="30" width="125" height="455" fill="none" stroke="#777" stroke-dasharray="5 4"/>
+    <text x="1017" y="250" text-anchor="middle" font-size="15" fill="#444">Docker</text>
+    <text x="1017" y="270" text-anchor="middle" font-size="15" fill="#444">Compose,</text>
+    <text x="1017" y="290" text-anchor="middle" font-size="15" fill="#444">5 containers</text>
+  </g>
+  <g stroke="#111" stroke-width="1.4" fill="none">
+    <path d="M190 230 H240 V158 H288" marker-end="url(#a)"/>
+    <path d="M190 266 H240 V348 H288" marker-end="url(#a)"/>
+    <path d="M500 140 H570 V90 H638" marker-end="url(#a)"/>
+    <path d="M500 350 H570 V110 H638" marker-end="url(#a)"/>
+    <path d="M500 175 H590 V430 H638" marker-end="url(#a)"/>
+    <path d="M500 370 H590" />
+    <path d="M500 190 H610 V263 H638" marker-end="url(#a)"/>
+    <path d="M775 150 V213" stroke-dasharray="6 4" marker-end="url(#a)"/>
+  </g>
+  <text x="785" y="190" font-size="14" fill="#111" font-family="Times New Roman">binlog</text>
+  <text x="196" y="222" font-size="14" fill="#111" font-family="Times New Roman">HTTP, WS</text>
+  <text x="508" y="132" font-size="14" fill="#111" font-family="Times New Roman">SQL</text>
+  <text x="598" y="450" font-size="14" fill="#111" font-family="Times New Roman">RESP</text>
+</svg>
+</body></html>

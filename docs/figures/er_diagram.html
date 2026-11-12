@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>ER Diagram (Chen notation): City ICU Bed Allocation System</title>
+<style>
+  @page { size: A4 landscape; margin: 7mm; }
+  html, body { margin: 0; background: #fff; }
+  svg { display: block; width: 275mm; height: auto; margin: 0 auto; }
+  text { font-family: "Segoe UI", Calibri, Arial, sans-serif; }
+</style>
+</head>
+<body>
+<svg id="er" viewBox="0 0 1100 755" xmlns="http://www.w3.org/2000/svg"></svg>
+<script>
+const NS = 'http://www.w3.org/2000/svg';
+const svg = document.getElementById('er');
+const layers = { lines: null, shapes: null };
+function el(tag, attrs, text, parent) {
+  const n = document.createElementNS(NS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (text != null) n.textContent = text;
+  (parent || svg).appendChild(n);
+  return n;
+}
+layers.lines = el('g', {});
+layers.shapes = el('g', {});
+const INK = '#111';
+const EW = 124, EH = 34;
+
+// ---------------------------------------------------------------- entities (centres)
+const E = {
+  hospital:     [140, 150],
+  bed:          [470, 150],
+  transfer:     [930, 150],
+  user_account: [140, 430],
+  reservation:  [470, 420],
+  bed_type:     [700, 430],
+  patient:      [930, 430],
+  audit_log:    [140, 668],
+  bed_request:  [470, 652],
+};
+
+// ---------------------------------------------------------------- attributes
+// [entity, label, x, y, kind]   kind: 'key' | 'derived' | 'composite' | 'part:<composite label>'
+const A = [
+  ['hospital', 'hospital_id', 62, 78, 'key'],
+  ['hospital', 'name', 160, 72],
+  ['hospital', 'zone', 248, 92],
+  ['hospital', 'location', 245, 222, 'composite'],
+  ['hospital', 'latitude', 232, 284, 'part:location'],
+  ['hospital', 'longitude', 322, 272, 'part:location'],
+
+  ['bed', 'bed_id', 395, 78, 'key'],
+  ['bed', 'ward', 480, 68],
+  ['bed', 'status', 565, 80],
+  ['bed', 'updated_at', 378, 228],
+
+  ['transfer', 'transfer_id', 858, 76, 'key'],
+  ['transfer', 'status', 965, 78],
+  ['transfer', 'note', 1050, 108],
+  ['transfer', 'created_at', 1038, 205],
+
+  ['user_account', 'user_id', 50, 375, 'key'],
+  ['user_account', 'name', 48, 488],
+  ['user_account', 'phone', 238, 392],
+  ['user_account', 'role', 240, 458],
+
+  ['reservation', 'reservation_id', 322, 360, 'key'],
+  ['reservation', 'status', 318, 418],
+  ['reservation', 'hold_expires_at', 330, 476],
+  ['reservation', 'admitted_at', 588, 372],
+  ['reservation', 'created_at', 590, 470],
+  ['reservation', 'active_bed_id', 578, 520, 'derived'],
+
+  ['bed_type', 'bed_type_id', 800, 380, 'key'],
+  ['bed_type', 'name', 815, 436],
+  ['bed_type', 'has_ventilator', 790, 492],
+
+  ['patient', 'patient_id', 1040, 370, 'key'],
+  ['patient', 'name', 1048, 420],
+  ['patient', 'age', 1050, 470],
+  ['patient', 'gender', 1040, 520],
+  ['patient', 'contact_phone', 1010, 575],
+
+  ['audit_log', 'log_id', 48, 612, 'key'],
+  ['audit_log', 'action', 44, 722],
+  ['audit_log', 'entity_name', 140, 736],
+  ['audit_log', 'entity_id', 240, 722],
+  ['audit_log', 'details', 252, 664],
+  ['audit_log', 'created_at', 238, 610],
+
+  ['bed_request', 'request_id', 340, 640, 'key'],
+  ['bed_request', 'severity', 360, 712],
+  ['bed_request', 'status', 470, 735],
+  ['bed_request', 'raw_text', 580, 716],
+  ['bed_request', 'created_at', 640, 668],
+  ['bed_request', 'pickup', 720, 726, 'composite'],
+  ['bed_request', 'pickup_lat', 820, 700, 'part:pickup'],
+  ['bed_request', 'pickup_lon', 830, 742, 'part:pickup'],
+];
+
+// ---------------------------------------------------------------- relationships
+// name, diamond centre, entity A, cardinality at A, total participation of A, entity B, cardinality at B, total of B
+const R = [
+  ['has',          [305, 150], 'hospital', '1', false, 'bed', 'N', true],
+  ['employs',      [140, 290], 'hospital', '1', false, 'user_account', 'N', false],
+  ['performs',     [140, 550], 'user_account', '1', false, 'audit_log', 'N', false],
+  ['raises',       [292, 570], 'user_account', '1', false, 'bed_request', 'N', true],
+  ['held as',      [470, 286], 'bed', '1', false, 'reservation', 'N', true],
+  ['fulfilled by', [470, 538], 'bed_request', '1', false, 'reservation', 'N', true],
+  ['is of type',   [600, 296], 'bed', 'N', true, 'bed_type', '1', false],
+  ['asks for',     [606, 576], 'bed_request', 'N', true, 'bed_type', '1', false],
+  ['occupies',     [770, 300], 'patient', '1', false, 'bed', '1', false],
+  ['moved from',   [700, 92],  'bed', '1', false, 'transfer', 'N', true],
+  ['moved to',     [700, 205], 'bed', '1', false, 'transfer', 'N', true],
+  ['is moved in',  [930, 290], 'patient', '1', false, 'transfer', 'N', true],
+  ['needs',        [905, 625], 'patient', '1', false, 'bed_request', 'N', true],
+];
+
+// ---------------------------------------------------------------- helpers
+function rx(label) { return Math.max(34, label.length * 3.15 + 13); }
+function line(p, q, total) {
+  if (total) {
+    el('line', { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: INK, 'stroke-width': 4.6 }, null, layers.lines);
+    el('line', { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: '#fff', 'stroke-width': 1.8 }, null, layers.lines);
+  } else {
+    el('line', { x1: p[0], y1: p[1], x2: q[0], y2: q[1], stroke: INK, 'stroke-width': 1.2 }, null, layers.lines);
+  }
+}
+// where the segment from the entity centre towards q leaves the entity rectangle
+function exitPoint(c, q) {
+  const dx = q[0] - c[0], dy = q[1] - c[1];
+  const tx = dx !== 0 ? (EW / 2) / Math.abs(dx) : Infinity;
+  const ty = dy !== 0 ? (EH / 2) / Math.abs(dy) : Infinity;
+  const t = Math.min(tx, ty);
+  return [c[0] + dx * t, c[1] + dy * t, dx, dy];
+}
+function cardinality(entity, toward, label) {
+  const c = E[entity];
+  const [x, y, dx, dy] = exitPoint(c, toward);
+  const len = Math.hypot(dx, dy) || 1;
+  const ux = dx / len, uy = dy / len;
+  // a little way along the line, nudged to its side
+  const px = x + ux * 14 + (-uy) * 9;
+  const py = y + uy * 14 + (ux) * 9 + 4;
+  el('text', { x: px, y: py, 'font-size': 12, 'font-weight': 700, fill: '#8a1f1f', 'text-anchor': 'middle' }, label, layers.shapes);
+}
+
+// ---------------------------------------------------------------- draw
+el('text', { x: 24, y: 28, 'font-size': 19, 'font-weight': 700, fill: INK }, 'ER Diagram (Chen notation): City ICU Bed Allocation System');
+el('text', { x: 24, y: 46, 'font-size': 11.5, fill: '#555' }, 'DBMS Lab (CD252IA), RV College of Engineering  ·  Rayyan Shaikh (1RV24CY044), Pooja Nagesh (1RV24CY038)');
+
+// attribute lines
+const pos = {};
+for (const [ent, label, x, y, kind] of A) pos[ent + ':' + label] = [x, y];
+for (const [ent, label, x, y, kind] of A) {
+  if (kind && kind.startsWith('part:')) line(pos[ent + ':' + kind.slice(5)], [x, y], false);
+  else line(E[ent], [x, y], false);
+}
+// relationship lines
+for (const [name, d, a, ca, ta, b, cb, tb] of R) {
+  line(E[a], d, ta);
+  line(d, E[b], tb);
+}
+// relationship diamonds
+for (const [name, d, a, ca, ta, b, cb, tb] of R) {
+  const w = Math.max(70, name.length * 6.6 + 26) / 2, h = 17;
+  el('polygon', { points: `${d[0] - w},${d[1]} ${d[0]},${d[1] - h} ${d[0] + w},${d[1]} ${d[0]},${d[1] + h}`, fill: '#fff', stroke: INK, 'stroke-width': 1.3 }, null, layers.shapes);
+  el('text', { x: d[0], y: d[1] + 4, 'font-size': 11, 'text-anchor': 'middle', fill: INK }, name, layers.shapes);
+  cardinality(a, d, ca);
+  cardinality(b, d, cb);
+}
+// attributes
+for (const [ent, label, x, y, kind] of A) {
+  const r = rx(label);
+  const attrs = { cx: x, cy: y, rx: r, ry: 12.5, fill: '#fff', stroke: INK, 'stroke-width': 1.1 };
+  if (kind === 'derived') attrs['stroke-dasharray'] = '4 3';
+  el('ellipse', attrs, null, layers.shapes);
+  const t = el('text', { x, y: y + 3.8, 'font-size': 10.5, 'text-anchor': 'middle', fill: INK, 'font-weight': kind === 'key' ? 700 : 400 }, label, layers.shapes);
+  if (kind === 'key') t.setAttribute('text-decoration', 'underline');
+}
+// entities
+for (const [name, [x, y]] of Object.entries(E)) {
+  el('rect', { x: x - EW / 2, y: y - EH / 2, width: EW, height: EH, fill: '#fff', stroke: INK, 'stroke-width': 1.6 }, null, layers.shapes);
+  el('text', { x, y: y + 4.5, 'font-size': 12.5, 'font-weight': 700, 'text-anchor': 'middle', fill: INK }, name.toUpperCase(), layers.shapes);
+}
+
+// legend
+const L = el('g', { transform: 'translate(612 8)' }, null, layers.shapes);
+el('rect', { x: 0, y: 0, width: 470, height: 40, fill: '#f6f7f8', stroke: '#aaa' }, null, L);
+el('rect', { x: 10, y: 11, width: 34, height: 18, fill: '#fff', stroke: INK, 'stroke-width': 1.3 }, null, L);
+el('text', { x: 49, y: 24, 'font-size': 10 }, 'Entity', L);
+el('ellipse', { cx: 108, cy: 20, rx: 20, ry: 9, fill: '#fff', stroke: INK }, null, L);
+const k = el('text', { x: 108, y: 23.5, 'font-size': 9, 'text-anchor': 'middle', 'font-weight': 700 }, 'key', L); k.setAttribute('text-decoration', 'underline');
+el('text', { x: 132, y: 24, 'font-size': 10 }, 'Key', L);
+el('ellipse', { cx: 172, cy: 20, rx: 17, ry: 9, fill: '#fff', stroke: INK, 'stroke-dasharray': '4 3' }, null, L);
+el('text', { x: 193, y: 24, 'font-size': 10 }, 'Derived', L);
+el('polygon', { points: '240,20 254,11 268,20 254,29', fill: '#fff', stroke: INK }, null, L);
+el('text', { x: 273, y: 24, 'font-size': 10 }, 'Relationship', L);
+el('line', { x1: 340, y1: 20, x2: 368, y2: 20, stroke: INK, 'stroke-width': 4.6 }, null, L);
+el('line', { x1: 340, y1: 20, x2: 368, y2: 20, stroke: '#fff', 'stroke-width': 1.8 }, null, L);
+el('text', { x: 373, y: 24, 'font-size': 10 }, 'Total participation', L);
+</script>
+</body>
+</html>

@@ -161,8 +161,8 @@ function BedBoard({ hospital, userId }) {
   );
 }
 
-export default function DashboardView() {
-  const { meta, userId, openConsole } = useApp();
+export default function BedsView() {
+  const { meta, userId } = useApp();
   const { data } = usePoll('/dashboard', 4000);
   const [sel, setSel] = useState(1);
   const hospitals = data?.hospitals || [];
@@ -171,13 +171,12 @@ export default function DashboardView() {
   const selected = hospitals.find((h) => h.hospital_id === sel);
   return (
     <div>
-      <div className="page-head">
+      <div className="view-head">
         <div className="grow">
-          <h1>City census</h1>
-          <p>Free-bed counts come from Redis counters, refreshed from MySQL after every commit. Pick a hospital to open its bed board.</p>
+          <h2 className="h2">Beds across the city</h2>
+          <p className="muted">One square per bed. Counts come from Redis, refreshed from MySQL after every commit. Pick a hospital to see its beds.</p>
         </div>
-        <Pill kind={data?.source === 'redis' ? 'outline' : 'warn'}>{data?.source === 'redis' ? 'counts from Redis' : 'counts from MySQL, Redis is down'}</Pill>
-        <button className="linkbtn" onClick={() => openConsole('redis')}>Compare with MySQL</button>
+        <span className="pill outline">{data?.source === 'redis' ? 'counts from Redis' : 'counts from MySQL, Redis is down'}</span>
       </div>
       <div className="kpis">
         <Kpi label="Free ICU" value={freeOf(1)} sub="city-wide" kind="free" />

@@ -6,37 +6,30 @@ import { api, fmtTime, post, TYPE_LABEL } from '../lib/api.js';
 import { toast, usePoll } from '../lib/hooks.js';
 import { clearDemo, live } from '../lib/live.js';
 import { useStore } from '../lib/store.js';
-import { Trace } from './RequestView.jsx';
+import Trace from '../components/Trace.jsx';
 
-function Demo({ no, title, tags, what, controls, children, explain, watch }) {
-  const { openConsole } = useApp();
+function Demo({ title, tags, what, controls, children, explain, watch }) {
+  const { openConsole, scenario, setScenario } = useApp();
+  const i = SCENARIOS.findIndex((s) => s.id === scenario);
+  const next = SCENARIOS[i + 1];
   return (
-    <Panel className="demo">
-      <div className="demo-head">
-        <div className="demo-no">{no}</div>
-        <div>
-          <div className="demo-title">{title}</div>
-          <div className="demo-what">{what}</div>
-          <div className="demo-tags">{tags.map((t) => <span key={t} className="tag">{t}</span>)}</div>
-        </div>
-      </div>
-      {controls && <div className="demo-ctl">{controls}</div>}
-      {children && <div className="demo-out">{children}</div>}
+    <article className="stage">
+      <h2 className="stage-title">{title}</h2>
+      <p className="stage-what">{what}</p>
+      {controls && <div className="stage-ctl">{controls}</div>}
+      {children && <div className="stage-out">{children}</div>}
       {explain && (
-        <details className="explain">
-          <summary>How it works</summary>
-          <div className="body">{explain}</div>
+        <details className="why">
+          <summary>Why this works</summary>
+          <div className="body">{explain}{tags && <p className="muted" style={{ margin: 0 }}>Concepts: {tags.join(', ')}.</p>}</div>
         </details>
       )}
-      {watch && (
-        <div className="demo-foot">
-          <span>Watch:</span>
-          {watch.map((w) => (
-            <span key={w.label} className="watch"><button className="linkbtn" onClick={() => openConsole(w.tab, w)}>{w.label}</button></span>
-          ))}
-        </div>
-      )}
-    </Panel>
+      <div className="stage-foot">
+        {watch?.[0] && <button type="button" className="linkbtn" onClick={() => openConsole(watch[0].tab, watch[0])}>See it in the database</button>}
+        <span className="grow" />
+        {next && <button type="button" className="btn ghost" onClick={() => setScenario(next.id)}>Next: {next.title}</button>}
+      </div>
+    </article>
   );
 }
 
@@ -392,50 +385,66 @@ const CHECKS = [
   { label: 'Read the replica', sql: 'SELECT @@hostname, @@server_id, @@super_read_only, COUNT(*) AS beds FROM bed', target: 'replica' },
 ];
 
+function TwoTabSwitch() {
+  const { settings, setSetting } = useApp();
+  return (
+    <Seg value={settings.booking_mode} onChange={(v) => setSetting({ booking_mode: v })}
+      options={[{ value: 'safe', label: 'Bookings lock rows' }, { value: 'unsafe', label: 'No lock', bad: true }]} />
+  );
+}
+
 function CheckDemo() {
   const { openConsole } = useApp();
   return (
     <Demo no="8" title="Check it yourself" tags={['Read-only user', 'Privileges', 'EXPLAIN', 'Multiple instances']}
-      what="The Query tab connects as icu_readonly inside a READ ONLY transaction. Write anything you like: MySQL itself decides what is allowed."
+      what="The Ask view runs your own SQL as icu_readonly inside a READ ONLY transaction: MySQL itself decides what is allowed. Or book from two browser tabs at once."
       controls={<>
         {CHECKS.map((c) => <button key={c.label} className="btn sm" onClick={() => openConsole('query', { query: { sql: c.sql, target: c.target || 'primary' } })}>{c.label}</button>)}
         <a className="btn sm ghost" href="/console" target="_blank" rel="noreferrer">Open console in its own window</a>
         <a className="btn sm ghost" href="http://localhost:8001" target="_blank" rel="noreferrer">Open app-2 (second instance)</a>
       </>}>
-      <div className="muted">Open this page twice (or once on app-1 and once on app-2), switch Booking to No lock and press book in both tabs within 2 seconds.</div>
+      <div className="two-tabs">
+        <div className="muted">Two-tab test: open the app twice (or on app-1 and app-2), turn the lock off here, and press Hold in both tabs within 2 seconds.</div>
+        <TwoTabSwitch />
+      </div>
     </Demo>
   );
 }
 
-function ResetDemo() {
-  const [busy, run] = useRun();
-  return (
-    <Demo no="9" title="Reset demo data" tags={['seed.sql', 'TRUNCATE', 'Redis rebuild']}
-      what="Re-runs seed.sql on the primary (it replicates to the replica), resets the clock and rebuilds every Redis key."
-      controls={<button className="btn" disabled={busy} onClick={() => run(async () => { const r = await post('/demo/reset'); toast(`Demo data reset (${r.statements} statements)`); })}>Reset demo data</button>} />
-  );
-}
+const SCENARIOS = [
+  { id: 'race', title: 'Race for the last bed', line: 'Two requests, one free bed', C: RaceDemo },
+  { id: 'expiry', title: 'Holds expire', line: 'MySQL frees unconverted holds', C: ExpiryDemo },
+  { id: 'deadlock', title: 'Deadlock', line: 'Two transfers wait on each other', C: CrossingDemo },
+  { id: 'crash', title: 'Kill the database', line: 'A crash in the middle of a transfer', C: CrashDemo },
+  { id: 'hoarding', title: 'Bed hoarding', line: 'A trigger stops it, an audit flags it', C: BlockingDemo },
+  { id: 'replica', title: 'Replica lag', line: 'Two servers disagree for a moment', C: ReplicationDemo },
+  { id: 'redis', title: 'Redis outage', line: 'The cache goes, bookings stay correct', C: RedisDemo },
+  { id: 'yourself', title: 'Try it yourself', line: 'Your own SQL, two browser tabs', C: CheckDemo },
+];
 
-export default function LabView() {
-  useEffect(() => { api('/health').catch(() => {}); }, []);
+export default function ScenariosView() {
+  const { scenario, setScenario } = useApp();
+  const [busy, run] = useRun();
+  const reset = () => run(async () => { const r = await post('/demo/reset'); toast(`Demo data reset (${r.statements} statements)`); });
   return (
-    <div>
-      <div className="page-head">
-        <div className="grow">
-          <h1>Demo lab</h1>
-          <p>Each demo provokes one database behaviour. Run it, then look at the live database panel on the right: every statement, lock and row change shows up there as it happens.</p>
-        </div>
-      </div>
-      <div className="lab">
-        <RaceDemo />
-        <ExpiryDemo />
-        <CrossingDemo />
-        <CrashDemo />
-        <BlockingDemo />
-        <ReplicationDemo />
-        <RedisDemo />
-        <CheckDemo />
-        <ResetDemo />
+    <div className="scen">
+      <aside className="scen-index">
+        <h1 className="h1">Scenarios</h1>
+        <p className="muted scen-lede">Each one pushes the database somewhere it could go wrong. Pick one, run it, read the result.</p>
+        <ol>
+          {SCENARIOS.map((s, i) => (
+            <li key={s.id}>
+              <button type="button" className={scenario === s.id ? 'on' : ''} aria-current={scenario === s.id ? 'step' : undefined} onClick={() => setScenario(s.id)}>
+                <span className="si-n">{i + 1}</span>
+                <span><span className="si-t">{s.title}</span><span className="si-l">{s.line}</span></span>
+              </button>
+            </li>
+          ))}
+        </ol>
+        <button type="button" className="linkbtn reset-link" disabled={busy} onClick={reset}>{busy ? 'Resetting...' : 'Reset demo data'}</button>
+      </aside>
+      <div className="scen-stage">
+        {SCENARIOS.map((s) => <div key={s.id} hidden={scenario !== s.id}><s.C /></div>)}
       </div>
     </div>
   );

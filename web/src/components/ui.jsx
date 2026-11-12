@@ -167,7 +167,7 @@ export function PlainTable({ columns, rows, maxHeight, highlight }) {
   return (
     <div className="tbl-wrap" style={{ maxHeight }}>
       <table className="tbl">
-        <thead><tr>{columns.map((c) => <th key={c.key || c}>{c.label || c}</th>)}</tr></thead>
+        <thead><tr>{columns.map((c) => <th key={c.key || c}>{typeof c === 'string' ? c : (c.label ?? c.key)}</th>)}</tr></thead>
         <tbody>
           {rows.map((r, i) => (
             <tr key={i} className={highlight && highlight(r) ? 'flag' : ''}>
