@@ -10,7 +10,7 @@ and replication delay shows up live while you use it.
 
 ## Run it
 
-Windows, no Docker and no admin rights. Needs Python 3.10+ (and Node.js 20 only if `web/dist` is missing).
+Windows, no Docker and no admin rights. Needs Python 3.10+. Node.js is only needed to rebuild the interface after editing `web/src`.
 Double-click **run.bat**. It:
 
 1. creates `.venv` and installs `requirements.txt` (first time only),
@@ -49,6 +49,32 @@ Start completely fresh (deletes both MySQL data directories, the next run.bat re
 ```bash
 .venv\Scripts\python -m app.services fresh
 ```
+
+## Documents
+
+| Document | File |
+| --- | --- |
+| Project report | [docs/submission/DBMS_Project_Report.pdf](docs/submission/DBMS_Project_Report.pdf) (Word: `.docx` beside it) |
+| Synopsis | [docs/submission/ICU_Bed_Allocation_Synopsis.pdf](docs/submission/ICU_Bed_Allocation_Synopsis.pdf) |
+| ER diagram (Chen notation) | [docs/submission/ER_Diagram.pdf](docs/submission/ER_Diagram.pdf) |
+| Presentation (8 slides) | [docs/presentation/ICU_Bed_Allocation_Presentation.pdf](docs/presentation/ICU_Bed_Allocation_Presentation.pdf) |
+
+## Run it from GitHub on a new Windows machine
+
+1. Install [Python 3.11](https://www.python.org/downloads/) (tick "Add python.exe to PATH") and [Git](https://git-scm.com/download/win).
+   Node.js is not needed: the built interface (`web/dist`) is in the repository.
+2. Open PowerShell and run:
+
+   ```bash
+   git clone https://github.com/TheClazer/icu-bed-allocation.git
+   cd icu-bed-allocation
+   .
+un.bat
+   ```
+
+3. The first run takes 3 to 6 minutes: it creates `.venv`, downloads MySQL and Redis (about 260 MB) into `runtime/`,
+   loads the database and opens http://localhost:8000. Later runs take about 15 seconds.
+4. Stop everything with `.\stop.bat`. Ports 3307, 3308, 6379, 8000 and 8001 must be free.
 
 ## Architecture
 

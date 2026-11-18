@@ -1,0 +1,411 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>City ICU Bed Allocation System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @page { size: 1920px 1080px; margin: 0; }
+  :root {
+    --ink: #13202b; --blue: #1f4fd1; --red: #d23a4a;
+    --paper: #fbfbf9; --grey: #5b6875; --mute: #8a95a1; --rule: #d9dee4; --soft: #eef1f5;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--paper); }
+  body { font-family: Barlow, sans-serif; color: var(--ink); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .slide { width: 1920px; height: 1080px; position: relative; overflow: hidden; background: var(--paper); page-break-after: always; break-after: page; }
+  .slide:last-child { page-break-after: auto; break-after: auto; }
+
+  /* frame shared by content slides */
+  .rail { position: absolute; left: 0; top: 0; bottom: 0; width: 132px; border-right: 1px solid var(--rule); }
+  .rail .n { position: absolute; top: 92px; left: 0; width: 132px; text-align: center; font: 600 46px/1 "Barlow Condensed"; color: var(--ink); }
+  .rail .of { display: block; font: 500 17px/1 "Geist Mono"; color: var(--mute); margin-top: 10px; }
+  .rail img { position: absolute; bottom: 58px; left: 36px; width: 60px; }
+  .foot { position: absolute; left: 200px; right: 110px; bottom: 54px; display: flex; justify-content: space-between; font: 500 18px/1 Barlow; color: var(--mute); }
+  .body { position: absolute; left: 200px; right: 110px; top: 92px; bottom: 120px; }
+  h2 { font: 600 82px/0.98 "Barlow Condensed"; letter-spacing: -0.5px; color: var(--ink); }
+  .lead { font: 400 30px/1.42 Barlow; color: var(--grey); max-width: 1180px; margin-top: 22px; }
+  .mono { font-family: "Geist Mono", monospace; }
+  .red { color: var(--red); } .blue { color: var(--blue); }
+
+  /* code */
+  pre { font: 400 21px/1.62 "Geist Mono"; color: var(--ink); white-space: pre; }
+  .k { color: var(--blue); font-weight: 600; } .c { color: var(--mute); } .s { color: var(--ink); } .x { color: var(--red); font-weight: 600; }
+
+  /* screenshot frame */
+  .shot { border: 1px solid var(--rule); background: #fff; overflow: hidden; position: relative; }
+  .shot img { display: block; width: 100%; }
+  .cap { font: 500 19px/1.35 Barlow; color: var(--grey); margin-top: 14px; }
+  .cap b { color: var(--ink); font-weight: 600; }
+
+  /* ECG chart paper */
+  .ecg { background-color: #fff;
+    background-image:
+      linear-gradient(rgba(210,58,74,.16) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(210,58,74,.16) 1px, transparent 1px),
+      linear-gradient(rgba(210,58,74,.07) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(210,58,74,.07) 1px, transparent 1px);
+    background-size: 50px 50px, 50px 50px, 10px 10px, 10px 10px; }
+
+  /* ---------- slide 1 ---------- */
+  .s1 .top { position: absolute; left: 110px; top: 84px; display: flex; align-items: center; gap: 26px; }
+  .s1 .top img { width: 104px; }
+  .s1 .inst { font: 600 34px/1.1 Barlow; color: var(--ink); }
+  .s1 .dept { font: 400 23px/1.3 Barlow; color: var(--grey); margin-top: 6px; }
+  .s1 .course { position: absolute; right: 110px; top: 104px; text-align: right; font: 500 21px/1.5 Barlow; color: var(--grey); }
+  .s1 .course b { display: block; font: 600 24px/1.3 "Geist Mono"; color: var(--ink); }
+  .s1 .title { position: absolute; left: 110px; top: 300px; width: 1240px; }
+  .s1 h1 { font: 700 148px/0.9 "Barlow Condensed"; letter-spacing: -1.5px; color: var(--ink); }
+  .s1 .sub { font: 400 34px/1.35 Barlow; color: var(--grey); margin-top: 30px; max-width: 1000px; }
+  .s1 .trace { position: absolute; left: 0; right: 0; top: 672px; height: 170px; }
+  .s1 .bedtag { position: absolute; right: 110px; top: 300px; width: 380px; }
+  .bedtag .num { font: 700 210px/0.82 "Barlow Condensed"; color: var(--ink); letter-spacing: -3px; }
+  .bedtag .pill { display: inline-block; border: 2px solid var(--blue); color: var(--blue); font: 600 22px/1 "Geist Mono"; padding: 8px 14px; margin-top: 18px; }
+  .bedtag .note { font: 400 22px/1.4 Barlow; color: var(--grey); margin-top: 18px; }
+  .s1 .people { position: absolute; left: 110px; right: 110px; bottom: 76px; display: grid; grid-template-columns: 1fr 1fr 1.2fr; gap: 60px; border-top: 1px solid var(--rule); padding-top: 30px; }
+  .people .h { font: 500 19px/1 Barlow; color: var(--mute); margin-bottom: 14px; }
+  .people .p { font: 600 28px/1.25 Barlow; color: var(--ink); }
+  .people .u { font: 500 20px/1.3 "Geist Mono"; color: var(--grey); margin-top: 4px; }
+
+  /* ---------- slide 2 ---------- */
+  .s2 .cols { display: grid; grid-template-columns: 1fr 1.05fr; gap: 110px; margin-top: 64px; }
+  .s2 .story { font: 400 30px/1.5 Barlow; color: var(--ink); }
+  .s2 .story p + p { margin-top: 24px; color: var(--grey); }
+  .s2 .story .src { font: 400 19px/1.4 Barlow; color: var(--mute); margin-top: 26px; }
+  .fail { display: grid; grid-template-columns: 112px 1fr; padding: 30px 0; border-top: 1px solid var(--rule); }
+  .fail:last-child { border-bottom: 1px solid var(--rule); }
+  .fail .i { font: 700 74px/0.9 "Barlow Condensed"; color: var(--red); }
+  .fail .t { font: 600 34px/1.15 "Barlow Condensed"; color: var(--ink); }
+  .fail .d { font: 400 24px/1.4 Barlow; color: var(--grey); margin-top: 8px; }
+  .s2 .stmt { position: absolute; left: 0; right: 0; bottom: 0; font: 500 25px/1.45 Barlow; color: var(--ink); padding-left: 26px; border-left: 4px solid var(--blue); }
+
+  /* ---------- slide 3 ---------- */
+  .s3 .wrap { display: grid; grid-template-columns: 1.55fr 1fr; gap: 80px; margin-top: 50px; }
+  .s3 svg text { font-family: Barlow; }
+  .note-list { list-style: none; }
+  .note-list li { padding: 22px 0; border-top: 1px solid var(--rule); }
+  .note-list li:last-child { border-bottom: 1px solid var(--rule); }
+  .note-list .t { font: 600 30px/1.15 "Barlow Condensed"; }
+  .note-list .d { font: 400 22px/1.42 Barlow; color: var(--grey); margin-top: 6px; }
+
+  /* ---------- slide 4 ---------- */
+  .s4 .wrap { display: grid; grid-template-columns: 1.08fr 1fr; gap: 70px; margin-top: 44px; }
+  .s4 .er { padding: 24px; }
+  .s4 .er img { width: 100%; }
+  .ents { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px 20px; font: 500 21px/1.3 "Geist Mono"; color: var(--ink); margin-top: 4px; }
+  .ents span::before { content: ""; display: inline-block; width: 9px; height: 9px; background: var(--blue); margin-right: 12px; vertical-align: 2px; }
+  .rule-box { margin-top: 38px; padding: 30px 34px; background: #fff; border: 1px solid var(--rule); border-left: 4px solid var(--blue); }
+  .rule-box .h { font: 600 30px/1.15 "Barlow Condensed"; margin-bottom: 14px; }
+  .rule-box p { font: 400 22px/1.45 Barlow; color: var(--grey); margin-top: 16px; }
+  .facts { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 34px; border-top: 1px solid var(--rule); }
+  .facts div { padding-top: 18px; }
+  .facts b { display: block; font: 700 58px/1 "Barlow Condensed"; color: var(--ink); }
+  .facts span { font: 400 20px/1.35 Barlow; color: var(--grey); }
+
+  /* ---------- slide 5 ---------- */
+  .s5 .wrap { display: grid; grid-template-columns: 1fr 1.02fr; gap: 64px; margin-top: 44px; }
+  .s5 .code { background: #fff; border: 1px solid var(--rule); padding: 30px 34px; }
+  .s5 .steps { margin-top: 30px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 26px; }
+  .s5 .steps div { border-top: 3px solid var(--ink); padding-top: 14px; font: 400 21px/1.4 Barlow; color: var(--grey); }
+  .s5 .steps b { display: block; font: 600 26px/1.2 "Barlow Condensed"; color: var(--ink); margin-bottom: 6px; }
+  .s5 .shot { height: 540px; }
+  .s5 .shot img { width: 160%; margin-left: -39%; margin-top: -9%; }
+
+  /* ---------- slide 6 ---------- */
+  .tbl6 { width: 100%; border-collapse: collapse; margin-top: 44px; }
+  .tbl6 th { text-align: left; font: 500 20px/1 Barlow; color: var(--mute); padding: 0 24px 16px 0; border-bottom: 2px solid var(--ink); }
+  .tbl6 td { padding: 28px 24px 28px 0; border-bottom: 1px solid var(--rule); vertical-align: top; font: 400 23px/1.36 Barlow; color: var(--grey); }
+  .tbl6 td.a { font: 600 27px/1.2 "Barlow Condensed"; color: var(--ink); width: 25%; }
+  .tbl6 td.m { color: var(--ink); width: 34%; }
+  .tbl6 td.code { font: 600 30px/1 "Geist Mono"; color: var(--red); width: 9%; white-space: nowrap; }
+  .tbl6 td.code.ok { color: var(--blue); }
+  .tbl6 td.r { width: 32%; }
+
+  /* ---------- slide 7 ---------- */
+  .s7 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 50px; margin-top: 44px; }
+  .s7 .shot { height: 560px; }
+  .s7 .a img { width: 150%; margin-left: -41.5%; margin-top: -15%; }
+  .s7 .b img { width: 146%; margin-left: -41%; margin-top: -15%; }
+  .s7 .cap { font-size: 22px; }
+
+  /* ---------- slide 8 ---------- */
+  .s8 .nums { display: grid; grid-template-columns: repeat(4, 1fr); margin-top: 50px; border: 1px solid #ecd2d6; }
+  .s8 .nums > div { padding: 46px 36px 44px; border-right: 1px solid #ecd2d6; }
+  .s8 .nums > div:last-child { border-right: 0; }
+  .s8 .nums b { display: block; font: 700 128px/0.9 "Barlow Condensed"; color: var(--ink); letter-spacing: -1px; }
+  .s8 .nums b small { font-size: 50px; color: var(--grey); font-weight: 600; }
+  .s8 .nums span { display: block; font: 400 22px/1.4 Barlow; color: var(--grey); margin-top: 14px; }
+  .s8 .end { display: grid; grid-template-columns: 1.25fr 1fr; gap: 100px; margin-top: 90px; }
+  .s8 .concl { font: 400 27px/1.5 Barlow; color: var(--ink); }
+  .s8 .concl p + p { margin-top: 18px; color: var(--grey); }
+  .s8 .thanks { border-left: 1px solid var(--rule); padding-left: 60px; }
+  .s8 .thanks .big { font: 700 96px/0.95 "Barlow Condensed"; }
+  .s8 .thanks .q { font: 400 26px/1.4 Barlow; color: var(--grey); margin-top: 12px; }
+  .s8 .thanks .repo { font: 500 21px/1.4 "Geist Mono"; color: var(--blue); margin-top: 34px; }
+  .s8 .thanks .stack { font: 400 20px/1.45 Barlow; color: var(--mute); margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<!-- 1. Title -->
+<section class="slide s1">
+  <div class="top">
+    <img src="img/rvce_seal.png" alt="RV College of Engineering seal">
+    <div>
+      <div class="inst">RV College of Engineering</div>
+      <div class="dept">Department of Computer Science and Engineering, Bengaluru</div>
+    </div>
+  </div>
+  <div class="course"><b>CD252IA</b>Database Management Systems<br>Mini Project (Lab), 2026-27</div>
+
+  <div class="title">
+    <h1>City ICU Bed<br>Allocation System</h1>
+    <p class="sub">Concurrency-safe booking and live bed availability across Bengaluru hospitals, built on MySQL 8 and Redis 7.</p>
+  </div>
+  <div class="bedtag">
+    <div class="num">703</div>
+    <span class="pill">HELD</span>
+    <div class="note">Two helplines asked for the same last ICU bed. The database gave it to exactly one.</div>
+  </div>
+
+  <svg class="trace" viewBox="0 0 1920 170" preserveAspectRatio="none" aria-hidden="true">
+    <path d="M0 110 H560 L585 110 L600 96 L615 110 L640 110 L652 128 L672 18 L694 150 L708 110 L760 110 L780 92 L806 110 H1180 L1205 110 L1220 96 L1235 110 L1260 110 L1272 128 L1292 18 L1314 150 L1328 110 L1380 110 L1400 92 L1426 110 H1920"
+      fill="none" stroke="#d23a4a" stroke-width="3" stroke-linejoin="round"/>
+  </svg>
+
+  <div class="people">
+    <div><div class="h">Presented by</div><div class="p">Rayyan Shaikh</div><div class="u">1RV24CY044</div></div>
+    <div><div class="h">&nbsp;</div><div class="p">Pooja Nagesh</div><div class="u">1RV24CY038</div></div>
+    <div><div class="h">Under the guidance of</div><div class="p">Prof. Shraddha H D</div><div class="u" style="font-family:Barlow">Assistant Professor, Department of CSE, RVCE</div></div>
+  </div>
+</section>
+
+<!-- 2. Problem -->
+<section class="slide s2">
+  <div class="rail"><div class="n">02<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>When the bed list is wrong,<br>a patient waits</h2>
+    <div class="cols">
+      <div class="story">
+        <p>In an emergency, families and ambulance crews phone hospital after hospital looking for a free ICU bed.</p>
+        <p>During the 2021 COVID-19 wave in Bengaluru, availability lists went stale within minutes and beds were reported blocked under false names.</p>
+        <div class="src">Citizen Matters, 2021: report on the city bed allotment system.</div>
+      </div>
+      <div>
+        <div class="fail"><div class="i">01</div><div><div class="t">Stale availability</div><div class="d">A list updated by phone is wrong by the time it is read.</div></div></div>
+        <div class="fail"><div class="i">02</div><div><div class="t">One bed promised twice</div><div class="d">Two requests read the same free bed at the same moment, and both book it.</div></div></div>
+        <div class="fail"><div class="i">03</div><div><div class="t">Beds blocked, never used</div><div class="d">Holds placed and never converted keep real patients out.</div></div></div>
+      </div>
+    </div>
+    <div class="stmt">Goal: a shared database that books the nearest suitable bed, can never allot one bed twice, frees unused holds by itself, audits every action, and stays correct through deadlocks and crashes.</div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 3. Architecture -->
+<section class="slide s3">
+  <div class="rail"><div class="n">03<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>Five processes, one source of truth</h2>
+    <p class="lead">Two identical, stateless app servers share one MySQL primary. Redis only speeds things up and can be rebuilt from MySQL at any time.</p>
+    <div class="wrap">
+      <svg viewBox="0 0 1000 560" width="100%" aria-label="System architecture">
+        <defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#13202b"/></marker>
+              <marker id="ab" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#1f4fd1"/></marker></defs>
+        <!-- browser -->
+        <rect x="0" y="222" width="190" height="116" fill="#fff" stroke="#13202b" stroke-width="1.5"/>
+        <text x="95" y="268" text-anchor="middle" font-size="25" font-weight="600" fill="#13202b">Browser</text>
+        <text x="95" y="298" text-anchor="middle" font-size="18" fill="#5b6875">React 18 + Vite</text>
+        <!-- apps -->
+        <rect x="290" y="90" width="230" height="124" fill="#fff" stroke="#13202b" stroke-width="1.5"/>
+        <text x="405" y="138" text-anchor="middle" font-size="25" font-weight="600" fill="#13202b">app-1</text>
+        <text x="405" y="168" text-anchor="middle" font-size="18" fill="#5b6875">FastAPI, port 8000</text>
+        <text x="405" y="192" text-anchor="middle" font-size="18" fill="#5b6875">raw SQL, no ORM</text>
+        <rect x="290" y="346" width="230" height="124" fill="#fff" stroke="#13202b" stroke-width="1.5"/>
+        <text x="405" y="394" text-anchor="middle" font-size="25" font-weight="600" fill="#13202b">app-2</text>
+        <text x="405" y="424" text-anchor="middle" font-size="18" fill="#5b6875">FastAPI, port 8001</text>
+        <text x="405" y="448" text-anchor="middle" font-size="18" fill="#5b6875">same code, stateless</text>
+        <!-- mysql primary -->
+        <rect x="660" y="20" width="340" height="150" fill="#13202b"/>
+        <text x="830" y="66" text-anchor="middle" font-size="26" font-weight="600" fill="#fff">MySQL 8 primary</text>
+        <text x="830" y="98" text-anchor="middle" font-size="18" fill="#c9d3dd">InnoDB, REPEATABLE READ</text>
+        <text x="830" y="124" text-anchor="middle" font-size="18" fill="#c9d3dd">row locks, triggers, event</text>
+        <text x="830" y="150" text-anchor="middle" font-size="18" fill="#c9d3dd">binary log with GTID, port 3307</text>
+        <!-- replica -->
+        <rect x="660" y="236" width="340" height="112" fill="#fff" stroke="#13202b" stroke-width="1.5"/>
+        <text x="830" y="280" text-anchor="middle" font-size="25" font-weight="600" fill="#13202b">MySQL 8 read replica</text>
+        <text x="830" y="310" text-anchor="middle" font-size="18" fill="#5b6875">super_read_only, port 3308</text>
+        <!-- redis -->
+        <rect x="660" y="414" width="340" height="128" fill="#fff" stroke="#1f4fd1" stroke-width="1.5" stroke-dasharray="7 5"/>
+        <text x="830" y="458" text-anchor="middle" font-size="25" font-weight="600" fill="#1f4fd1">Redis 7</text>
+        <text x="830" y="488" text-anchor="middle" font-size="18" fill="#5b6875">GEO search, free-bed counters</text>
+        <text x="830" y="512" text-anchor="middle" font-size="18" fill="#5b6875">pub/sub live events, port 6379</text>
+        <!-- arrows -->
+        <g fill="none" stroke="#13202b" stroke-width="1.6">
+          <path d="M190 262 H240 V152 H288" marker-end="url(#ar)"/>
+          <path d="M190 298 H240 V408 H288" marker-end="url(#ar)"/>
+          <path d="M520 130 H600 V80 H658" marker-end="url(#ar)"/>
+          <path d="M520 386 H600 V110"/>
+          <path d="M520 170 H620 V292 H658" marker-end="url(#ar)"/>
+          <path d="M830 170 V234" stroke-dasharray="6 5" marker-end="url(#ar)"/>
+        </g>
+        <g fill="none" stroke="#1f4fd1" stroke-width="1.6">
+          <path d="M520 196 H580 V478 H658" marker-end="url(#ab)"/>
+          <path d="M520 440 H580"/>
+        </g>
+        <text x="95" y="368" text-anchor="middle" font-size="17" fill="#5b6875">HTTP, WebSocket</text>
+        <text x="604" y="62" font-size="17" fill="#13202b">writes</text>
+        <text x="846" y="210" font-size="17" fill="#5b6875">binlog</text>
+        <text x="405" y="502" text-anchor="middle" font-size="17" fill="#1f4fd1">Redis written only after COMMIT</text>
+      </svg>
+      <ul class="note-list">
+        <li><div class="t">MySQL decides</div><div class="d">Every booking, hold and transfer is one InnoDB transaction. Constraints and triggers are the last line of defence.</div></li>
+        <li><div class="t">Redis accelerates</div><div class="d">Nearest-hospital search and live counters. Written only after a commit, rebuilt from MySQL if lost.</div></li>
+        <li><div class="t">Replica for reading</div><div class="d">GTID asynchronous replication. Reports read here, bookings never do.</div></li>
+        <li><div class="t">One command to run</div><div class="d">run.bat starts all five as plain Windows processes. No Docker, no admin rights.</div></li>
+      </ul>
+    </div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 4. Database design -->
+<section class="slide s4">
+  <div class="rail"><div class="n">04<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>Nine entities, normalised to BCNF</h2>
+    <div class="wrap">
+      <div class="shot er"><img src="img/er_diagram.png" alt="ER diagram in Chen notation"></div>
+      <div>
+        <div class="ents">
+          <span>hospital</span><span>bed_type</span><span>bed</span>
+          <span>user_account</span><span>patient</span><span>bed_request</span>
+          <span>reservation</span><span>transfer</span><span>audit_log</span>
+        </div>
+        <div class="rule-box">
+          <div class="h">The rule the database enforces itself</div>
+<pre><span class="s">active_bed_id INT</span> <span class="k">GENERATED ALWAYS AS</span>
+  (<span class="k">CASE WHEN</span> status = 'HELD' <span class="k">THEN</span> bed_id <span class="k">END</span>) <span class="k">STORED</span>,
+<span class="k">UNIQUE KEY</span> <span class="x">one_active_booking_per_bed</span> (active_bed_id)</pre>
+          <p>A held reservation copies its bed id into this column; any other status leaves NULL. A second live hold on the same bed breaks the UNIQUE index, even if the application forgets to lock.</p>
+        </div>
+        <div class="facts">
+          <div><b>5</b><span>triggers: hold limit, audit, bed release</span></div>
+          <div><b>1</b><span>event expiring holds every 5 seconds</span></div>
+          <div><b>2</b><span>views for the audit and the bed board</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 5. Booking transaction -->
+<section class="slide s5">
+  <div class="rail"><div class="n">05<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>Booking a bed is one transaction</h2>
+    <div class="wrap">
+      <div>
+        <div class="code">
+<pre><span class="c">-- Redis: nearest hospitals with a free bed</span>
+<span class="k">GEOSEARCH</span> hospitals:geo <span class="k">FROMLONLAT</span> 77.62 12.93 <span class="k">BYRADIUS</span> 50 km <span class="k">ASC</span>
+
+<span class="k">START TRANSACTION</span>;
+<span class="k">SELECT</span> bed_id <span class="k">FROM</span> bed
+ <span class="k">WHERE</span> bed_type_id = 1 <span class="k">AND</span> status = 'FREE' <span class="k">AND</span> hospital_id = 7
+ <span class="k">ORDER BY</span> bed_id <span class="k">LIMIT</span> 1
+   <span class="x">FOR UPDATE SKIP LOCKED</span>;
+<span class="k">INSERT INTO</span> reservation (request_id, bed_id, status, hold_expires_at)
+ <span class="k">VALUES</span> (55, 703, 'HELD', sim_now() + <span class="k">INTERVAL</span> 30 <span class="k">MINUTE</span>);
+<span class="k">UPDATE</span> bed <span class="k">SET</span> status = 'HELD' <span class="k">WHERE</span> bed_id = 703;
+<span class="k">COMMIT</span>;
+
+<span class="c">-- only now: refresh the Redis counter from MySQL</span>
+<span class="k">SET</span> free:7:1 0</pre>
+        </div>
+        <div class="steps">
+          <div><b>Free text in</b>"ICU near koramangla, 45 F, serious" is parsed with regex and fuzzy matching.</div>
+          <div><b>Lock, skip, move on</b>A bed locked by someone else is skipped, not waited for.</div>
+          <div><b>30 minute hold</b>Not admitted in time, the MySQL event frees the bed.</div>
+        </div>
+      </div>
+      <div>
+        <div class="shot"><img src="img/held.png" alt="Bed held, with the statements the database ran"></div>
+        <div class="cap"><b>The live result.</b> Bed 703 held, and every statement the database ran in 21 ms, shown on the same screen.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 6. The database defends itself -->
+<section class="slide s6">
+  <div class="rail"><div class="n">06<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>Break it on purpose: the database holds</h2>
+    <table class="tbl6">
+      <thead><tr><th>What we do to it</th><th>What stops it</th><th>Error</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td class="a">Two requests, one last bed</td><td class="m">Row lock with FOR UPDATE SKIP LOCKED</td><td class="code ok">none</td><td class="r">One holds the bed, the other moves to the next hospital</td></tr>
+        <tr><td class="a">Same race with locking off</td><td class="m">UNIQUE index on the generated column</td><td class="code">1062</td><td class="r">Second insert refused by the schema itself</td></tr>
+        <tr><td class="a">Two crossing transfers</td><td class="m">InnoDB deadlock detection, then ordered locking</td><td class="code">1213</td><td class="r">One rolled back; with ordered locks both finish</td></tr>
+        <tr><td class="a">Kill MySQL mid-transfer</td><td class="m">Redo log replays commits, undo log removes the rest</td><td class="code">crash</td><td class="r">No bed half-moved, committed holds survive</td></tr>
+        <tr><td class="a">Spam fake holds</td><td class="m">BEFORE INSERT trigger with SIGNAL, audit view</td><td class="code">1644</td><td class="r">Five held, three refused, account flagged</td></tr>
+        <tr><td class="a">DELETE from the query box</td><td class="m">Read-only MySQL user with SELECT grant only</td><td class="code">1142</td><td class="r">Evaluator can explore, never damage</td></tr>
+        <tr><td class="a">Stop Redis, keep booking</td><td class="m">Fallback to MySQL ST_Distance_Sphere search</td><td class="code ok">none</td><td class="r">Bookings stay correct, Redis rebuilt on restart</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 7. Evidence -->
+<section class="slide s7">
+  <div class="rail"><div class="n">07<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>What InnoDB does, shown live</h2>
+    <div class="pair">
+      <div>
+        <div class="shot a"><img src="img/deadlock.png" alt="Deadlock wait-for graph"></div>
+        <div class="cap"><b>Deadlock.</b> T5 holds bed 101 and wants 105, T4 holds 105 and wants 101. InnoDB picks T4 as the victim and rolls it back with error 1213. The graph is read from SHOW ENGINE INNODB STATUS.</div>
+      </div>
+      <div>
+        <div class="shot b"><img src="img/crash.png" alt="Crash recovery comparison"></div>
+        <div class="cap"><b>Crash recovery.</b> mysqld is killed inside an open transfer. After restart, bed 706 is still occupied and 707 still free. MySQL's own log: 3 row operations to undo. Back in 4.7 s.</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+<!-- 8. Results and conclusion -->
+<section class="slide s8">
+  <div class="rail"><div class="n">08<span class="of">of 08</span></div><img src="img/rvce_seal.png" alt=""></div>
+  <div class="body">
+    <h2>Results and conclusion</h2>
+    <div class="nums ecg">
+      <div><b>50<small>/50</small></b><span>race runs with exactly one hold on the last bed</span></div>
+      <div><b>20<small>/20</small></b><span>automated tests passing against the live database</span></div>
+      <div><b>4.7<small> s</small></b><span>from killing MySQL to a consistent, recovered state</span></div>
+      <div><b>0</b><span>beds allotted twice, in every scenario tried</span></div>
+    </div>
+    <div class="end">
+      <div class="concl">
+        <p>Correctness lives in the database, not in the application: row locks, a UNIQUE constraint, triggers, a scheduled event and crash recovery each stop one way a bed could be lost or double-booked.</p>
+        <p>The same design fits any scarce shared resource, from ambulances to blood units, where two people must never be promised the same thing.</p>
+      </div>
+      <div class="thanks">
+        <div class="big">Thank you</div>
+        <div class="q">Questions, and a live demo.</div>
+        <div class="repo">github.com/TheClazer/icu-bed-allocation</div>
+        <div class="stack">MySQL 8, Redis 7, Python FastAPI, React 18</div>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><span>RV College of Engineering, Department of CSE</span><span>City ICU Bed Allocation System</span></div>
+</section>
+
+</body>
+</html>
