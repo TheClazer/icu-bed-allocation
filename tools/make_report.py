@@ -2,28 +2,37 @@
 
   .venv\\Scripts\\python.exe tools\\make_report.py  <output.docx>
 
-Formatting follows the department's report format: Letter page, 1 inch margins,
-Times New Roman throughout, body 12 pt justified at 1.5 line spacing, chapter and
-section headings 14 pt bold, title page lines 14 pt bold centred inside a double
-page border, declaration title 16 pt, figure and table captions 12 pt italic.
+Formatting follows the department's report format (tools/report_template, built by
+tools/make_report_template.py from a format sample): Letter page with the RVCE
+double page border and watermark, RVCE letterhead on the title page, RVCE logo on
+the certificate and declaration, RVCE footer strip on the front pages, Times New
+Roman throughout, body 12 pt justified at 1.5 line spacing, chapter headings
+"CHAPTER n: TITLE" 14 pt bold, section headings 12 pt bold, figure captions 12 pt
+bold centred below the figure.
 """
+import copy
 import sys
 from pathlib import Path
 
 from docx import Document
-from docx.enum.section import WD_SECTION
 from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_BREAK, WD_LINE_SPACING, WD_TAB_ALIGNMENT
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Inches, Pt, Twips
+from docx.shared import Inches, Pt, RGBColor, Twips
 
 ROOT = Path(__file__).resolve().parent.parent
 FIG = ROOT / "docs" / "figures"
 SHOT = ROOT / "docs" / "screenshots"
+TPL = ROOT / "tools" / "report_template"
 FONT = "Times New Roman"
 
-doc = Document()
+doc = Document(TPL / "template.docx")
+body_el = doc.element.body
+marker = body_el.find(qn("w:p"))                      # carries the front-matter section definition
+FRONT_SECT = copy.deepcopy(marker.find(qn("w:pPr")).find(qn("w:sectPr")))
+body_el.remove(marker)
+
 
 # ------------------------------------------------------------------ base styles
 def set_font(style_or_run, size=None, bold=None, italic=None, name=FONT):
@@ -52,44 +61,79 @@ normal.paragraph_format.space_after = Pt(0)
 normal.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
 normal.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
 
-for name, size in (("Heading 1", 14), ("Heading 2", 14), ("Heading 3", 12)):
+for name, size, spacing in (("Heading 1", 14, WD_LINE_SPACING.SINGLE),
+                            ("Heading 2", 12, WD_LINE_SPACING.ONE_POINT_FIVE),
+                            ("Heading 3", 12, WD_LINE_SPACING.ONE_POINT_FIVE)):
     st = doc.styles[name]
-    set_font(st, size, bold=True)
-    st.font.color.rgb = None
+    set_font(st, size, bold=True, italic=False)
     pf = st.paragraph_format
-    pf.space_before = Pt(12 if name != "Heading 1" else 0)
-    pf.space_after = Pt(6)
-    pf.line_spacing_rule = WD_LINE_SPACING.SINGLE
-    pf.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY if name != "Heading 1" else WD_ALIGN_PARAGRAPH.CENTER
+    pf.space_before = Twips(56) if name != "Heading 1" else Pt(0)
+    pf.space_after = Pt(6) if name == "Heading 1" else Pt(0)
+    pf.line_spacing_rule = spacing
+    pf.alignment = WD_ALIGN_PARAGRAPH.LEFT
     pf.keep_with_next = True
     rpr = st.element.get_or_add_rPr()
-    for tag in ("w:color",):
+    for tag in ("w:color", "w:sz", "w:szCs"):
         for c in rpr.findall(qn(tag)):
-            rpr.remove(c)
+            if tag == "w:color":
+                rpr.remove(c)
+    set_font(st, size)
 
 cap = doc.styles["Caption"]
-set_font(cap, 12, bold=False, italic=True)
+set_font(cap, 12, bold=True, italic=False)
 cap.font.color.rgb = None
 cap.paragraph_format.alignment = WD_ALIGN_PARAGRAPH.CENTER
-cap.paragraph_format.space_before = Pt(6)
-cap.paragraph_format.space_after = Pt(10)
+cap.paragraph_format.space_before = Twips(56)
+cap.paragraph_format.space_after = Pt(8)
 cap.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
 
 for nm in ("Figure Caption", "Table Caption"):
     st = doc.styles.add_style(nm, 1)
     st.base_style = cap
-    set_font(st, 12, bold=False, italic=True)
+    set_font(st, 12, bold=True, italic=False)
 
-sec = doc.sections[0]
-sec.page_width, sec.page_height = Twips(12240), Twips(15840)
-sec.top_margin = sec.left_margin = sec.right_margin = Twips(1440)
-sec.bottom_margin = Twips(776)
-sec.header_distance = sec.footer_distance = Twips(720)
+
+# ------------------------------------------------------------------ list numbering (from the template)
+numbering = doc.part.numbering_part.element
+W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+
+
+def _abstract_of(num_id):
+    for n in numbering.findall(W + "num"):
+        if n.get(W + "numId") == str(num_id):
+            return n.find(W + "abstractNumId").get(W + "val")
+    raise KeyError(num_id)
+
+
+BULLET_NUM = 15                      # round bullet, hanging indent
+DECIMAL_ABS = _abstract_of(18)       # "1." numbered list
+_next_num = [max(int(n.get(W + "numId")) for n in numbering.findall(W + "num")) + 1]
+
+
+def new_numbered_list():
+    """A fresh w:num on the decimal list so every numbered list starts at 1."""
+    nid = _next_num[0]
+    _next_num[0] += 1
+    num = OxmlElement("w:num")
+    num.set(qn("w:numId"), str(nid))
+    a = OxmlElement("w:abstractNumId"); a.set(qn("w:val"), DECIMAL_ABS); num.append(a)
+    o = OxmlElement("w:lvlOverride"); o.set(qn("w:ilvl"), "0")
+    s = OxmlElement("w:startOverride"); s.set(qn("w:val"), "1"); o.append(s); num.append(o)
+    numbering.append(num)
+    return nid
+
+
+def set_num(p, num_id):
+    ppr = p._p.get_or_add_pPr()
+    np_ = OxmlElement("w:numPr")
+    il = OxmlElement("w:ilvl"); il.set(qn("w:val"), "0"); np_.append(il)
+    ni = OxmlElement("w:numId"); ni.set(qn("w:val"), str(num_id)); np_.append(ni)
+    ppr.insert(0, np_) if ppr.find(qn("w:pStyle")) is None else ppr.find(qn("w:pStyle")).addnext(np_)
 
 
 # ------------------------------------------------------------------ helpers
 def para(text="", size=12, bold=False, italic=False, align=WD_ALIGN_PARAGRAPH.JUSTIFY,
-         spacing=WD_LINE_SPACING.ONE_POINT_FIVE, before=None, after=None, style=None):
+         spacing=WD_LINE_SPACING.ONE_POINT_FIVE, before=None, after=None, style=None, color=None):
     p = doc.add_paragraph(style=style)
     p.alignment = align
     p.paragraph_format.line_spacing_rule = spacing
@@ -98,11 +142,11 @@ def para(text="", size=12, bold=False, italic=False, align=WD_ALIGN_PARAGRAPH.JU
     if after is not None:
         p.paragraph_format.space_after = Pt(after)
     if text:
-        add_runs(p, text, size, bold, italic)
+        add_runs(p, text, size, bold, italic, color)
     return p
 
 
-def add_runs(p, text, size=12, bold=False, italic=False):
+def add_runs(p, text, size=12, bold=False, italic=False, color=None):
     """Supports **bold** spans inside text."""
     parts = text.split("**")
     for i, part in enumerate(parts):
@@ -110,55 +154,70 @@ def add_runs(p, text, size=12, bold=False, italic=False):
             continue
         r = p.add_run(part)
         set_font(r, size, bold=bold or (i % 2 == 1), italic=italic)
+        if color:
+            r.font.color.rgb = RGBColor.from_string(color)
     return p
 
 
-def centre(text, size=14, bold=True, before=0, after=0, spacing=WD_LINE_SPACING.SINGLE):
-    return para(text, size, bold, align=WD_ALIGN_PARAGRAPH.CENTER, spacing=spacing, before=before, after=after)
+def centre(text, size=14, bold=True, before=0, after=0, spacing=WD_LINE_SPACING.SINGLE, italic=False, color=None):
+    return para(text, size, bold, italic, align=WD_ALIGN_PARAGRAPH.CENTER, spacing=spacing,
+                before=before, after=after, color=color)
+
+
+def small_caps_heading(text, size=14, after=10):
+    p = para("", align=WD_ALIGN_PARAGRAPH.LEFT, spacing=WD_LINE_SPACING.SINGLE, before=0, after=after)
+    r = p.add_run(text)
+    set_font(r, size)
+    r.font.small_caps = True
+    return p
+
+
+def picture(path, width):
+    p = doc.add_paragraph()
+    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+    p.add_run().add_picture(str(path), width=Inches(width))
+    return p
 
 
 def page_break():
     p = doc.add_paragraph()
     p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
     p.add_run().add_break(WD_BREAK.PAGE)
 
 
-def chapter(n, title):
-    page_break()
+def chapter_heading(text, new_page=True):
+    if new_page:
+        page_break()
     h = doc.add_paragraph(style="Heading 1")
-    h.paragraph_format.space_after = Pt(18)
-    r = h.add_run(f"CHAPTER {n}")
-    set_font(r, 14, bold=True)
-    r.add_break()
-    r = h.add_run(title.upper())
-    set_font(r, 14, bold=True)
+    set_font(h.add_run(text), 14, bold=True)
+
+
+def chapter(n, title):
+    chapter_heading(f"CHAPTER {n}: {title.upper()}")
 
 
 def section(num, title):
     h = doc.add_paragraph(style="Heading 2")
-    r = h.add_run(f"{num} {title}")
-    set_font(r, 14, bold=True)
+    set_font(h.add_run(f"{num} {title}"), 12, bold=True)
 
 
 def sub(title):
     h = doc.add_paragraph(style="Heading 3")
-    r = h.add_run(title)
-    set_font(r, 12, bold=True)
+    set_font(h.add_run(title), 12, bold=True)
 
 
 def bullets(items, numbered=False):
-    for i, it in enumerate(items, 1):
-        p = doc.add_paragraph(style=None if numbered else "List Bullet")
+    nid = new_numbered_list() if numbered else BULLET_NUM
+    for it in items:
+        p = doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
         p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.ONE_POINT_FIVE
         p.paragraph_format.space_before = Twips(56)
-        if numbered:
-            p.paragraph_format.left_indent = Inches(0.35)
-            p.paragraph_format.first_line_indent = Inches(-0.3)
-            p.paragraph_format.tab_stops.add_tab_stop(Inches(0.35))
-            add_runs(p, f"{i}." + chr(9) + it)
-        else:
-            add_runs(p, it)
+        set_num(p, nid)
+        add_runs(p, it)
 
 
 def code(text):
@@ -176,13 +235,14 @@ def code(text):
 figures, tables = [], []
 
 
-def figure(path, caption, width=6.3):
+def figure(path, caption, width=6.2):
     if not Path(path).exists():
         para(f"[Figure missing: {Path(path).name}]", italic=True, align=WD_ALIGN_PARAGRAPH.CENTER)
         return
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p.paragraph_format.space_before = Pt(10)
+    p.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
     p.paragraph_format.keep_with_next = True
     p.add_run().add_picture(str(path), width=Inches(width))
     figures.append(caption)
@@ -191,16 +251,20 @@ def figure(path, caption, width=6.3):
 
 def table(caption, header, rows, widths=None):
     tables.append(caption)
-    doc.add_paragraph(f"Table {caption}", style="Table Caption")
+    c_ = doc.add_paragraph(f"Table {caption}", style="Table Caption")
+    c_.paragraph_format.keep_with_next = True
     t = doc.add_table(rows=1, cols=len(header))
     t.style = "Table Grid"
     t.alignment = WD_TABLE_ALIGNMENT.CENTER
     for i, h in enumerate(header):
         c = t.rows[0].cells[i]
         c.text = ""
-        r = c.paragraphs[0].add_run(h)
-        set_font(r, 12, bold=True)
-        c.paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER
+        pp = c.paragraphs[0]
+        pp.alignment = WD_ALIGN_PARAGRAPH.LEFT
+        pp.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        pp.paragraph_format.space_before = Pt(2)
+        pp.paragraph_format.space_after = Pt(2)
+        set_font(pp.add_run(h), 12, bold=True)
     for row in rows:
         cells = t.add_row().cells
         for i, v in enumerate(row):
@@ -210,7 +274,7 @@ def table(caption, header, rows, widths=None):
             pp.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
             pp.paragraph_format.space_before = Pt(2)
             pp.paragraph_format.space_after = Pt(2)
-            add_runs(pp, str(v), 11)
+            add_runs(pp, str(v), 12)
     if widths:
         for row in t.rows:
             for i, w in enumerate(widths):
@@ -218,18 +282,12 @@ def table(caption, header, rows, widths=None):
     para("", spacing=WD_LINE_SPACING.SINGLE, before=0)
 
 
-def page_border(section_):
-    sp = section_._sectPr
-    b = OxmlElement("w:pgBorders")
-    b.set(qn("w:offsetFrom"), "page")
-    for side in ("top", "left", "bottom", "right"):
-        e = OxmlElement(f"w:{side}")
-        e.set(qn("w:val"), "double")
-        e.set(qn("w:sz"), "4")
-        e.set(qn("w:space"), "24")
-        e.set(qn("w:color"), "auto")
-        b.append(e)
-    sp.find(qn("w:pgMar")).addnext(b)
+def borderless(t):
+    tblpr = t._tbl.tblPr
+    b = OxmlElement("w:tblBorders")
+    for side in ("top", "left", "bottom", "right", "insideH", "insideV"):
+        e = OxmlElement(f"w:{side}"); e.set(qn("w:val"), "nil"); b.append(e)
+    tblpr.append(b)
 
 
 def field(p, instr):
@@ -242,95 +300,98 @@ def field(p, instr):
     e = OxmlElement("w:fldChar"); e.set(qn("w:fldCharType"), "end"); p.add_run()._r.append(e)
 
 
+def list_page(title, instr, first=False):
+    if not first:
+        page_break()
+    small_caps_heading(title, 14, after=2)
+    p = para("", align=WD_ALIGN_PARAGRAPH.RIGHT, spacing=WD_LINE_SPACING.SINGLE, before=0, after=8)
+    r = p.add_run("Page No"); set_font(r, 12); r.font.small_caps = True
+    field(doc.add_paragraph(), instr)
+
+
 # ================================================================== title page
-centre("RV COLLEGE OF ENGINEERING®", 16, before=6)
-centre("(Autonomous Institution Affiliated to VTU, Belagavi)", 12, bold=False, before=4)
-centre("Mysore Road, R V Vidyaniketan Post, Bengaluru 560059", 12, bold=False, before=2, after=26)
-centre("DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING", 14, spacing=WD_LINE_SPACING.DOUBLE)
-centre("Database Management Systems Lab (CD252IA)", 14, spacing=WD_LINE_SPACING.DOUBLE, after=6)
-centre("Mini Project Report", 14, bold=False, before=6)
-centre("on", 12, bold=False, before=6)
-centre("CITY ICU BED ALLOCATION SYSTEM", 18, before=10, after=4)
-centre("A transaction-safe bed booking system on MySQL 8 and Redis 7", 14, bold=False, before=2, after=30)
-centre("Submitted by", 14, bold=False, before=10, after=8)
+picture(TPL / "letterhead.png", 6.6)
+centre("DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING", 14, spacing=WD_LINE_SPACING.DOUBLE, before=18)
+centre("City ICU Bed Allocation System", 14, spacing=WD_LINE_SPACING.DOUBLE, color="FF0000")
+centre("A transaction-safe bed booking system on MySQL 8 and Redis 7", 14,
+       spacing=WD_LINE_SPACING.DOUBLE, after=6, color="FF0000")
+centre("Database Management Systems Lab (CD252IA)", 14)
+centre("Mini Project Report", 14, before=4)
+centre("Submitted by", 12, bold=False, italic=True, before=40, after=6)
 t = doc.add_table(rows=2, cols=2)
 t.alignment = WD_TABLE_ALIGNMENT.CENTER
+borderless(t)
 for i, (n, u) in enumerate((("Rayyan Shaikh", "1RV24CY044"), ("Pooja Nagesh", "1RV24CY038"))):
     for j, v in enumerate((n, u)):
         c = t.rows[i].cells[j]
         c.text = ""
         pp = c.paragraphs[0]
         pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = pp.add_run(v)
-        set_font(r, 14, bold=True)
-centre("Under the guidance of", 14, bold=False, before=30, after=6)
-centre("Prof. Shraddha H D", 14)
-centre("Assistant Professor", 14, bold=False, before=2)
-centre("Department of Computer Science and Engineering", 14, bold=False, before=2)
-centre("RV College of Engineering, Bengaluru", 14, bold=False, before=2, after=26)
-centre("Academic Year 2026-27", 14)
-page_border(doc.sections[0])
+        pp.paragraph_format.line_spacing_rule = WD_LINE_SPACING.DOUBLE
+        set_font(pp.add_run(v), 12)
+centre("Under the guidance of", 12, bold=False, italic=True, before=40, after=6)
+centre("Prof. Shraddha H D", 12)
+centre("Assistant Professor", 12, bold=False, before=4)
+centre("Department of Computer Science and Engineering", 12, bold=False, before=4)
+centre("RV College of Engineering, Bengaluru", 12, bold=False, before=4, after=40)
+centre("Academic Year 2026-27", 12)
 
 # ================================================================== certificate
-new = doc.add_section(WD_SECTION.NEW_PAGE)
-centre("RV COLLEGE OF ENGINEERING®, BENGALURU 560059", 14, before=6)
-centre("(Autonomous Institution Affiliated to VTU, Belagavi)", 12, bold=False, before=2)
-centre("DEPARTMENT OF COMPUTER SCIENCE AND ENGINEERING", 14, before=10, after=30)
-centre("CERTIFICATE", 16, after=20)
+page_break()
+picture(TPL / "logo_certificate.png", 4.9)
+centre("CERTIFICATE", 18, before=16, after=12)
 para("Certified that the mini project titled **City ICU Bed Allocation System** has been carried out by "
      "**Rayyan Shaikh (1RV24CY044)** and **Pooja Nagesh (1RV24CY038)**, bonafide students of RV College of "
      "Engineering, Bengaluru, as part of the course Database Management Systems Lab (CD252IA) during the "
      "academic year 2026-27. The project report has been approved as it satisfies the academic requirements "
-     "in respect of the mini project work prescribed for the course.", spacing=WD_LINE_SPACING.DOUBLE)
-for _ in range(4):
+     "in respect of the mini project work prescribed for the course.")
+for _ in range(3):
     para("", spacing=WD_LINE_SPACING.SINGLE)
 sig = doc.add_table(rows=3, cols=2)
+borderless(sig)
 for j, lines in enumerate((("Prof. Shraddha H D", "Assistant Professor", "Department of CSE, RVCE"),
                            ("Head of Department", "Department of CSE", "RVCE, Bengaluru"))):
     for i, v in enumerate(lines):
         c = sig.rows[i].cells[j]
         c.text = ""
         pp = c.paragraphs[0]
-        pp.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        r = pp.add_run(v)
-        set_font(r, 12, bold=(i == 0))
-para("", spacing=WD_LINE_SPACING.SINGLE)
-centre("External Viva", 14, before=30, after=10)
-ext = doc.add_table(rows=3, cols=2)
-ext.style = "Table Grid"
-for j, h in enumerate(("Name of Examiners", "Signature with Date")):
-    c = ext.rows[0].cells[j]
-    c.text = ""
-    r = c.paragraphs[0].add_run(h)
-    set_font(r, 12, bold=True)
+        pp.alignment = WD_ALIGN_PARAGRAPH.LEFT if j == 0 else WD_ALIGN_PARAGRAPH.RIGHT
+        pp.paragraph_format.line_spacing_rule = WD_LINE_SPACING.SINGLE
+        set_font(pp.add_run(v), 12, bold=True if i == 0 else False)
+for _ in range(2):
+    para("", spacing=WD_LINE_SPACING.SINGLE)
+centre("External Viva", 12, before=20, after=12)
+ev = para("", bold=True, align=WD_ALIGN_PARAGRAPH.LEFT, spacing=WD_LINE_SPACING.SINGLE, after=14)
+ev.paragraph_format.left_indent = Inches(0.4)
+ev.paragraph_format.tab_stops.add_tab_stop(Inches(3.9))
+set_font(ev.add_run("Name of Examiners\tSignature with Date"), 12, bold=True)
 for i in (1, 2):
-    c = ext.rows[i].cells[0]
-    c.text = ""
-    r = c.paragraphs[0].add_run(f"{i}.")
-    set_font(r, 12)
+    p = para("", align=WD_ALIGN_PARAGRAPH.LEFT, spacing=WD_LINE_SPACING.SINGLE, after=14)
+    p.paragraph_format.left_indent = Inches(0.4)
+    set_font(p.add_run(f"{i}"), 12, bold=True)
 
 # ================================================================== declaration
 page_break()
-centre("DECLARATION", 16, before=6, after=20)
+picture(TPL / "logo_declaration.png", 5.4)
+centre("DECLARATION", 16, before=16, after=12)
 para("We, **Rayyan Shaikh (1RV24CY044)** and **Pooja Nagesh (1RV24CY038)**, students of the Department of "
      "Computer Science and Engineering, RV College of Engineering, Bengaluru, declare that the mini project "
      "titled **City ICU Bed Allocation System** has been carried out by us under the guidance of "
      "Prof. Shraddha H D, Assistant Professor, Department of Computer Science and Engineering, as part of "
-     "the Database Management Systems Lab (CD252IA) during the academic year 2026-27.",
-     spacing=WD_LINE_SPACING.DOUBLE)
+     "the Database Management Systems Lab (CD252IA) during the academic year 2026-27.")
 para("We further declare that the work presented in this report is original, that all data used in the "
      "system is simulated, and that this work has not been submitted for any other course or degree.",
-     spacing=WD_LINE_SPACING.DOUBLE)
-for _ in range(3):
-    para("", spacing=WD_LINE_SPACING.SINGLE)
-para("Place: Bengaluru", spacing=WD_LINE_SPACING.SINGLE, align=WD_ALIGN_PARAGRAPH.LEFT)
-para("Date:", spacing=WD_LINE_SPACING.SINGLE, align=WD_ALIGN_PARAGRAPH.LEFT)
+     before=12)
+para("", spacing=WD_LINE_SPACING.SINGLE)
+para("Place: Bengaluru", align=WD_ALIGN_PARAGRAPH.LEFT, before=12)
+para("Date:", align=WD_ALIGN_PARAGRAPH.LEFT, before=12)
 for name in ("Rayyan Shaikh (1RV24CY044)", "Pooja Nagesh (1RV24CY038)"):
-    para(name, bold=True, spacing=WD_LINE_SPACING.DOUBLE, align=WD_ALIGN_PARAGRAPH.RIGHT, before=14)
+    p = para(name, bold=True, align=WD_ALIGN_PARAGRAPH.LEFT)
+    p.paragraph_format.left_indent = Inches(0.4)
 
 # ================================================================== acknowledgement
 page_break()
-centre("ACKNOWLEDGEMENT", 16, before=6, after=20)
+small_caps_heading("Acknowledgement")
 for t_ in (
     "We thank our guide, **Prof. Shraddha H D**, Assistant Professor, Department of Computer Science and "
     "Engineering, for her guidance throughout this mini project. Her questions about how the system behaves "
@@ -341,11 +402,11 @@ for t_ in (
     "We thank the Principal and the management of RV College of Engineering for providing an environment "
     "that encourages hands-on learning. Finally, we thank our families and friends for their support.",
 ):
-    para(t_)
+    para(t_, after=10)
 
 # ================================================================== abstract
 page_break()
-centre("ABSTRACT", 16, before=6, after=20)
+small_caps_heading("Abstract")
 for t_ in (
     "Critical-care beds are scarce, and during peak demand several helplines and ambulances may try to "
     "book the same bed at the same moment. If two requests are both told that the last ventilator bed is "
@@ -366,25 +427,27 @@ for t_ in (
     "killing the MySQL server in the middle of a transfer leaves no partially moved patient. A rule-based "
     "natural language parser converts free-text requests into structured bookings.",
 ):
-    para(t_)
+    para(t_, after=10)
 
 # ================================================================== contents
 page_break()
-centre("TABLE OF CONTENTS", 16, before=6, after=14)
-field(doc.add_paragraph(), 'TOC \\o "1-2" \\h \\z \\u')
-page_break()
-centre("LIST OF FIGURES", 16, before=6, after=14)
-field(doc.add_paragraph(), 'TOC \\h \\z \\t "Figure Caption,1"')
-page_break()
-centre("LIST OF TABLES", 16, before=6, after=14)
-field(doc.add_paragraph(), 'TOC \\h \\z \\t "Table Caption,1"')
+list_page("Table of Contents", 'TOC \\o "1-2" \\h \\z \\u', first=True)
+list_page("List of Figures", 'TOC \\h \\z \\t "Figure Caption,1"')
+list_page("List of Tables", 'TOC \\h \\z \\t "Table Caption,1"')
+
+# front matter ends here: its section carries the RVCE footer strip
+end_front = doc.add_paragraph()
+end_front.paragraph_format.space_before = Pt(0)
+end_front._p.get_or_add_pPr().append(FRONT_SECT)
 
 # ================================================================== main body (page numbers from here)
-body = doc.add_section(WD_SECTION.NEW_PAGE)
-body._sectPr.append(OxmlElement("w:pgNumType"))
-body._sectPr.find(qn("w:pgNumType")).set(qn("w:start"), "1")
-body.footer.is_linked_to_previous = False
+body = doc.sections[-1]
+pg = OxmlElement("w:pgNumType"); pg.set(qn("w:start"), "1")
+body._sectPr.append(pg)
 fp = body.footer.paragraphs[0]
+for ch in list(fp._p):
+    if ch.tag != qn("w:pPr"):
+        fp._p.remove(ch)
 fp.alignment = WD_ALIGN_PARAGRAPH.CENTER
 r = fp.add_run()
 for kind, text in (("begin", None), (None, "PAGE"), ("end", None)):
@@ -393,12 +456,9 @@ for kind, text in (("begin", None), (None, "PAGE"), ("end", None)):
     else:
         e = OxmlElement("w:instrText"); e.text = text; r._r.append(e)
 set_font(r, 12)
-for s_ in doc.sections[:-1]:
-    pass
 
 # ----------------------------------------------------------- chapter 1
-h = doc.add_paragraph(style="Heading 1"); h.paragraph_format.space_after = Pt(18)
-r = h.add_run("CHAPTER 1"); set_font(r, 14, bold=True); r.add_break(); set_font(h.add_run("INTRODUCTION"), 14, bold=True)
+chapter_heading("CHAPTER 1: INTRODUCTION", new_page=False)
 
 section("1.1", "Background")
 para("Intensive care units, ventilator beds and oxygen-supported beds are among the scarcest resources in "
@@ -694,7 +754,7 @@ bullets([
 
 # ----------------------------------------------------------- references
 page_break()
-h = doc.add_paragraph(style="Heading 1"); h.paragraph_format.space_after = Pt(18); set_font(h.add_run("REFERENCES"), 14, bold=True)
+chapter_heading("REFERENCES", new_page=False)
 refs = [
     "A. Silberschatz, H. F. Korth and S. Sudarshan, Database System Concepts, 7th ed. New York: McGraw-Hill, 2019.",
     "R. Elmasri and S. B. Navathe, Fundamentals of Database Systems, 7th ed. Boston: Pearson, 2016.",
@@ -710,7 +770,7 @@ for i, r_ in enumerate(refs, 1):
 
 # ----------------------------------------------------------- appendix
 page_break()
-h = doc.add_paragraph(style="Heading 1"); h.paragraph_format.space_after = Pt(18); set_font(h.add_run("APPENDIX: RUNNING THE SYSTEM"), 14, bold=True)
+chapter_heading("APPENDIX: RUNNING THE SYSTEM", new_page=False)
 bullets([
     "Install Python 3.10 or newer. No Docker and no administrator rights are needed.",
     "Double-click Start ICU Bed System.bat. The first run downloads MySQL and Redis once (about 260 MB) and sets up both databases.",
@@ -718,11 +778,6 @@ bullets([
     "Run the automated tests with .venv\Scripts\python -m pytest -q tests in the project folder.",
     "Stop the system with stop.bat; the data is kept for the next run.",
 ], numbered=True)
-
-# the double page border belongs to the title page only
-for s_ in doc.sections[1:]:
-    for b_ in s_._sectPr.findall(qn("w:pgBorders")):
-        s_._sectPr.remove(b_)
 
 # ask Word to refresh the contents and lists when the file is opened
 settings = doc.settings.element
