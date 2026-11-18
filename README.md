@@ -57,7 +57,7 @@ Start completely fresh (deletes both MySQL data directories, the next run.bat re
 | Project report | [docs/submission/DBMS_Project_Report.pdf](docs/submission/DBMS_Project_Report.pdf) (Word: `.docx` beside it) |
 | Synopsis | [docs/submission/ICU_Bed_Allocation_Synopsis.pdf](docs/submission/ICU_Bed_Allocation_Synopsis.pdf) |
 | ER diagram (Chen notation) | [docs/submission/ER_Diagram.pdf](docs/submission/ER_Diagram.pdf) |
-| Presentation (8 slides) | [docs/presentation/ICU_Bed_Allocation_Presentation.pdf](docs/presentation/ICU_Bed_Allocation_Presentation.pdf) |
+| Presentation (8 slides) | [PowerPoint](docs/presentation/ICU_Bed_Allocation_Presentation.pptx) (with speaker notes), [PDF](docs/presentation/ICU_Bed_Allocation_Presentation.pdf) |
 
 ## Run it from GitHub on a new Windows machine
 
